@@ -93,14 +93,25 @@ To run the automated verification script (which checks all 7 phases, verifies fi
 conda run -n pumpkinzzz-env node scripts/check-phases.js
 ```
 
-### 5. Build and Package (Final Phase 7)
-To build the compiled, distributable installer (DMG for macOS, NSIS for Windows):
+## 📦 Packaging, Distribution & Client Usage (Phase 7)
+
+### 📤 How to Package into a Single Installer File to Email to Clients
+To compile Pumpkinzzz into a standalone, production-ready desktop installer (which bundles the React frontend, Electron runtime, and SQLite database engine into a single file for distribution), run:
 
 ```bash
-# Compile React static files
-conda run -n pumpkinzzz-env npm run build:frontend
-
-# Package using electron-builder
-conda run -n pumpkinzzz-env npm run build:electron
+conda run -n pumpkinzzz-env npm run build
 ```
-*(No end-user configuration or Node.js environment is required to run the packaged output executable once built.)*
+
+This single command:
+1. Compiles and minifies the React frontend static assets (`npm run build:frontend`).
+2. Packages the application using **electron-builder** (`npm run build:electron`).
+
+Once finished, a standalone installer file (`.dmg` for macOS or `.exe` NSIS installer for Windows) will be generated inside the **`release/`** directory. You can take this installer file and email it directly to your client!
+
+### 📥 How Clients Use It on Their End (Zero Setup)
+Clients do **not** need to install Node.js, Conda, or configure any cloud database or server. All they have to do is:
+1. Receive and open the installer file (`Pumpkinzzz Setup.exe` or `Pumpkinzzz.dmg`) sent by email.
+2. Double-click to install the app onto their computer.
+3. Launch **Pumpkinzzz** directly from their desktop or applications menu.
+
+All company schedule data, product types, and project records are automatically secured locally on their machine in a self-contained SQLite database file (`pumpkinzzz.db`), ensuring 100% data privacy and zero internet connection requirements.

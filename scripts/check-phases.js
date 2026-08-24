@@ -46,7 +46,8 @@ async function runChecks() {
     'src/renderer/utils/csv.js',
     'src/renderer/components/ProductTypeManager.jsx',
     'src/renderer/components/ProductRegistry.jsx',
-    'src/renderer/components/ProjectTracker.jsx'
+    'src/renderer/components/ProjectTracker.jsx',
+    'src/renderer/components/Dashboard.jsx'
   ];
 
   let filesOk = true;

@@ -28,11 +28,17 @@ This changelog documents the development history, structural designs, and code f
 - **`src/renderer/components/ProductRegistry.jsx`**: Manual product registration form and real-time spreadsheet grid bulk upload verifier with cell-level error flagging (clashing Tag Nos, missing compulsory fields, date formats).
 - **`src/renderer/components/ProjectTracker.jsx`**: Project monitoring board providing live milestone countdowns, urgency color-coded component order tracking, and inline actual completion date recorders that instantly trigger downstream recursive tree re-propagations.
 
+- **`src/renderer/components/Dashboard.jsx`**: Executive operations dashboard featuring real-time KPI metrics cards and an interactive timeline Gantt Chart visualizer tracking project durations and milestone markers.
+
+- **`package.json`**: Configured `electron-builder` targets (`dmg` for macOS, `nsis` for Windows) and production build scripts to compile the standalone installer into the `release/` directory.
+
 ---
 
-## Current Status (Stage 5 of 7)
+## Current Status (Stage 7 of 7) ── [COMPLETED]
 - **Phase 1: Environment Setup** ── **[COMPLETED]** (Conda environment built, Node installed, Electron + React structure verified and compiling).
 - **Phase 2: Database Schema & IPC Layer** ── **[COMPLETED]** (Schema designed and coded, database automatically instantiates local tables on startup, IPC handlers defined).
 - **Phase 3 & Core Logic** ── **[COMPLETED]** (Propagating schedule and component logic written, verified and modularized).
 - **Phase 4: Product Type Management UI** ── **[COMPLETED]** (Product Type list and details screen built with visual milestone relationship tree and CSV import/export handlers).
 - **Phase 5: Product Registry & Project Tracker UI** ── **[COMPLETED]** (Manual project form, bulk CSV spreadsheet verifier with error-correction grid, and project tracker monitoring actual dates & countdowns).
+- **Phase 6: Interactive Dashboard & Gantt Chart** ── **[COMPLETED]** (Executive dashboard with summary metric cards and interactive Gantt timeline visualizer).
+- **Phase 7: Exporting & Packaging** ── **[COMPLETED]** (Configured `electron-builder` targets and release pipelines for Windows and macOS standalone installers).

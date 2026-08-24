@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Dashboard from './components/Dashboard';
 import ProductTypeManager from './components/ProductTypeManager';
 import ProductRegistry from './components/ProductRegistry';
 import ProjectTracker from './components/ProjectTracker';
@@ -65,12 +66,7 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto p-8">
           {activeTab === 'dashboard' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">Welcome to Pumpkinzzz!</h2>
-              <p className="text-gray-600">
-                The project schedule tracking system for manufacturing. All data is saved on your local machine using SQLite.
-              </p>
-            </div>
+            <Dashboard />
           )}
 
           {activeTab === 'productTypes' && (
@@ -89,5 +85,6 @@ export default function App() {
     </div>
   );
 }
+
 
 
