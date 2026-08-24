@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import ProductTypeManager from './components/ProductTypeManager';
+import ProductRegistry from './components/ProductRegistry';
+import ProjectTracker from './components/ProjectTracker';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -61,14 +64,30 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Welcome to Pumpkinzzz!</h2>
-            <p className="text-gray-600">
-              The project schedule tracking system for manufacturing. All data is saved on your local machine using SQLite.
-            </p>
-          </div>
+          {activeTab === 'dashboard' && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Welcome to Pumpkinzzz!</h2>
+              <p className="text-gray-600">
+                The project schedule tracking system for manufacturing. All data is saved on your local machine using SQLite.
+              </p>
+            </div>
+          )}
+
+          {activeTab === 'productTypes' && (
+            <ProductTypeManager />
+          )}
+
+          {activeTab === 'registry' && (
+            <ProductRegistry onRedirectToTracker={() => setActiveTab('tracker')} />
+          )}
+
+          {activeTab === 'tracker' && (
+            <ProjectTracker onRedirectToRegistry={() => setActiveTab('registry')} />
+          )}
         </div>
       </main>
     </div>
   );
 }
+
+

@@ -10,7 +10,10 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 - **Component Lead Time Tracking:** Tracks components relative to their milestones and warns of late ordering based on lead times ($Targeted\ Deadline - Lead\ Time = Latest\ Order\ Date$).
 - **Local SQLite Storage:** Self-contained data storage requiring zero cloud APIs or web servers, securing company data locally.
 - **Interactive Gantt & Dashboard Visualizations:** A fully functional dashboard interface containing customized, responsive Gantt Chart visual charts.
-- **Robust CSV Bulk Importers:** High-quality bulk uploads with visual verification spreadsheets highlighting validation errors and key constraints (such as clashing Tag Nos).
+- **Product Type & Schedule Master Configuration (Phase 4):** A robust registry enabling users to manage product types, build custom milestone dependency graphs, attach raw parts, and establish custom order lead times.
+- **Interactive Milestone Tree Diagram (Phase 4):** Visualizes the recursive hierarchical anchors and offset relations of custom milestones starting from root boundary boundaries.
+- **Phase 4 CSV Import & Export Enablers:** Dedicated flat CSV parsers/stringifiers allowing instant local backups or communication transfers of Product Types and Schedule Configurations.
+- **Robust CSV Bulk Importers (Phase 5):** High-quality bulk uploads with visual verification spreadsheets highlighting validation errors and key constraints (such as clashing Tag Nos).
 
 ---
 
@@ -32,9 +35,12 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 │   ├── preload.js          # Secure, safe Electron IPC Bridge
 │   └── renderer/           # Vite-compiled React Frontend Code
 │       ├── main.jsx        # App entry point
-│       ├── App.jsx         # Sidebar and Tab Navigation layouts
+│       ├── App.jsx         # Main Tabbed sidebar layout and navigation
 │       ├── index.css       # Tailwind entry point
+│       ├── components/
+│       │   └── ProductTypeManager.jsx # Product Type & Schedule Configuration Dashboard (Phase 4)
 │       └── utils/
+│           ├── csv.js       # RFC 4180 CSV parsing & serialization utilities (Phase 4)
 │           └── scheduler.js # Core calculation engine (milestone & component rules)
 ├── index.html              # Frontend DOM mount
 ├── plan.md                 # 7-Phase Build plan and architectural specifications
@@ -46,12 +52,15 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 
 ---
 
-## 💻 Developer Setup & Installation
+## 💻 Developer Setup, Installation & How to Run for Testing
 
-To run or work on Pumpkinzzz locally, follow these steps:
+### ❓ Can I just double-click `index.html` to test the app?
+**No.** Pumpkinzzz is not a standard static website. It is an **Electron desktop application** that communicates with a local **SQLite database (`pumpkinzzz.db`)** and utilizes secure Inter-Process Communication (IPC) bridges (`window.electronAPI`). If you try to double-click `index.html` in your web browser, it will fail because the browser does not have access to Node.js backend databases or desktop dialog APIs.
+
+Instead, you run the app via Node.js/Electron wrapper commands. Follow these simple steps:
 
 ### 1. Prerequisite: Conda Environment Setup
-We use Conda to package the required Node.js environment on your system cleanly.
+We use Conda to package the required Node.js environment on your system cleanly. Open your terminal and run:
 
 ```bash
 # Create the environment with Node.js 20 and npm
@@ -63,20 +72,28 @@ conda run -n pumpkinzzz-env npm -v
 ```
 
 ### 2. Install Project Dependencies
-Run the installation script within your conda environment:
+Install the required packages within your conda environment:
 
 ```bash
 conda run -n pumpkinzzz-env npm install
 ```
 
-### 3. Run Development Server
-Run the concurrent task which compiles React on Vite (port `5173`) and launches Electron simultaneously:
+### 3. How to Run the App Live for Testing (Development Mode)
+To launch the live desktop application window (which automatically compiles the React frontend on Vite and spawns the Electron app simultaneously):
 
 ```bash
 conda run -n pumpkinzzz-env npm run dev
 ```
+*This opens the interactive **Pumpkinzzz Desktop App** window where you can click around tabs, test the Product Types registry, upload CSV files, register projects, and view countdowns.*
 
-### 4. Build and Package
+### 4. How to Run Automated Verification Tests
+To run the automated verification script (which checks all 7 phases, verifies file structures, inspects SQLite database tables, and tests core scheduling and CSV parsing round-trips):
+
+```bash
+conda run -n pumpkinzzz-env node scripts/check-phases.js
+```
+
+### 5. Build and Package (Final Phase 7)
 To build the compiled, distributable installer (DMG for macOS, NSIS for Windows):
 
 ```bash
@@ -86,4 +103,4 @@ conda run -n pumpkinzzz-env npm run build:frontend
 # Package using electron-builder
 conda run -n pumpkinzzz-env npm run build:electron
 ```
-*(No end-user configuration or Node.js environment is required to run the packaged output executable.)*
+*(No end-user configuration or Node.js environment is required to run the packaged output executable once built.)*
