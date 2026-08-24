@@ -1,0 +1,53 @@
+{
+  "name": "pumpkinzzz",
+  "version": "1.0.0",
+  "description": "Project schedule tracking application for manufacturing lifecycle tracking",
+  "main": "src/main.js",
+  "scripts": {
+    "dev:frontend": "vite",
+    "dev:electron": "electron .",
+    "dev": "concurrently \"npm run dev:frontend\" \"electron .\"",
+    "build:frontend": "vite build",
+    "build:electron": "electron-builder",
+    "build": "npm run build:frontend && npm run build:electron"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "lucide-react": "^0.395.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "vite": "^5.3.1"
+  },
+  "build": {
+    "appId": "com.pumpkinzzz.app",
+    "productName": "Pumpkinzzz",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
