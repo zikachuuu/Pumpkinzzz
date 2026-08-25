@@ -3,9 +3,18 @@ import Dashboard from './components/Dashboard';
 import ProductTypeManager from './components/ProductTypeManager';
 import ProductRegistry from './components/ProductRegistry';
 import ProjectTracker from './components/ProjectTracker';
+import Settings from './components/Settings';
+import { DATE_FORMATS, getStoredDateFormat, setStoredDateFormat } from './utils/date';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [dateFormat, setDateFormat] = useState(getStoredDateFormat);
+
+  const handleDateFormatChange = (format) => {
+    const nextFormat = Object.values(DATE_FORMATS).includes(format) ? format : DATE_FORMATS.iso;
+    setStoredDateFormat(nextFormat);
+    setDateFormat(nextFormat);
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -48,6 +57,14 @@ export default function App() {
             Project Tracker
           </button>
         </nav>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`mx-4 mb-4 flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === 'settings' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
+          }`}
+        >
+          Settings
+        </button>
         <div className="p-4 border-t border-indigo-800 text-xs text-indigo-300 text-center">
           v1.0.0 (Local Workspace)
         </div>
@@ -66,7 +83,7 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto p-8">
           {activeTab === 'dashboard' && (
-            <Dashboard />
+            <Dashboard dateFormat={dateFormat} />
           )}
 
           {activeTab === 'productTypes' && (
@@ -74,11 +91,15 @@ export default function App() {
           )}
 
           {activeTab === 'registry' && (
-            <ProductRegistry onRedirectToTracker={() => setActiveTab('tracker')} />
+            <ProductRegistry onRedirectToTracker={() => setActiveTab('tracker')} dateFormat={dateFormat} />
           )}
 
           {activeTab === 'tracker' && (
-            <ProjectTracker onRedirectToRegistry={() => setActiveTab('registry')} />
+            <ProjectTracker onRedirectToRegistry={() => setActiveTab('registry')} dateFormat={dateFormat} />
+          )}
+
+          {activeTab === 'settings' && (
+            <Settings dateFormat={dateFormat} onDateFormatChange={handleDateFormatChange} />
           )}
         </div>
       </main>

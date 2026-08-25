@@ -89,4 +89,4 @@ TBD…
 
 ## Incremental Review Status
 
-Section 1 (Product Types Interface), including 1.1 and 1.2, was implemented and rechecked on 2026-08-26. Frontend production build passed. Sections 2 and later remain pending for the next review cycle.
+Sections 1 through 5 were implemented and rechecked on 2026-08-26. Section 2 already had a working Product Registry and CSV bulk-verification flow; sections 3, 4, and 5 received the remaining interface, dashboard, and settings changes. Frontend production build and phase verification passed. Further manual CSV and Electron-window acceptance testing remains recommended.

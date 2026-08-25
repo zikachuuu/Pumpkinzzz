@@ -1,21 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  BarChart3, Calendar, Clock, AlertTriangle, CheckCircle2, 
-  TrendingUp, Layers, RefreshCw, Filter, Download, ArrowRight
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, BarChart3, Calendar, Check, Clock, Layers, Plus, Trash2 } from 'lucide-react';
 import * as db from '../utils/db';
-import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../utils/scheduler';
+import { calculateMilestoneDeadlines } from '../utils/scheduler';
+import { formatDate } from '../utils/date';
 
-export default function Dashboard() {
+const dayMs = 1000 * 60 * 60 * 24;
+const daysBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / dayMs);
+
+export default function Dashboard({ dateFormat }) {
   const [projects, setProjects] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
-  const [allMilestones, setMilestones] = useState({});
-  const [allComponentSchedules, setComponentSchedules] = useState({});
-  const [allComponents, setComponents] = useState([]);
-  
-  const [loading, setLoading] = useState(true);
-  const [selectedPtId, setSelectedPtId] = useState('all');
+  const [components, setComponents] = useState([]);
+  const [componentUsage, setComponentUsage] = useState({});
+  const [milestones, setMilestones] = useState({});
+  const [activeTab, setActiveTab] = useState('product');
+  const [selectedTag, setSelectedTag] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [comparisonRows, setComparisonRows] = useState([]);
   const [alert, setAlert] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
@@ -23,262 +26,103 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    loadDashboardData();
+    const loadDashboard = async () => {
+      try {
+        const [projectData, typeData, componentData] = await Promise.all([db.getProjects(), db.getProductTypes(), db.getComponents()]);
+        const milestoneMap = {};
+        const usageMap = {};
+        for (const type of typeData) {
+          const attachedComponents = await db.getAttachedComponents(type.id);
+          attachedComponents.forEach(component => {
+            usageMap[component.id] = [...(usageMap[component.id] || []), type.name];
+          });
+          const schedules = await db.getSchedules(type.id);
+          for (const schedule of schedules) milestoneMap[schedule.id] = await db.getMilestones(schedule.id);
+        }
+        setProjects(projectData);
+        setProductTypes(typeData);
+        setComponents(componentData);
+        setComponentUsage(usageMap);
+        setMilestones(milestoneMap);
+        if (projectData.length > 0) setSelectedTag(projectData[0].tag_no);
+      } catch (err) {
+        triggerAlert('error', `Failed to load dashboard: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboard();
   }, []);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      const projs = await db.getProjects();
-      setProjects(projs);
+  const selectedProject = projects.find(project => project.tag_no === selectedTag);
+  const selectedMilestones = selectedProject ? milestones[selectedProject.schedule_id] || [] : [];
+  const deadlines = selectedProject ? calculateMilestoneDeadlines(selectedProject, selectedMilestones) : {};
+  const datedMilestones = selectedMilestones
+    .map(milestone => ({ ...milestone, target: deadlines[milestone.id] }))
+    .filter(milestone => milestone.target)
+    .sort((first, second) => first.target.localeCompare(second.target));
 
-      const pts = await db.getProductTypes();
-      setProductTypes(pts);
+  const addComparisonRow = () => setComparisonRows(rows => [...rows, { start: '', end: '' }]);
+  const updateComparisonRow = (index, field, value) => setComparisonRows(rows => rows.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row));
+  const removeComparisonRow = index => setComparisonRows(rows => rows.filter((_, rowIndex) => rowIndex !== index));
 
-      const comps = await db.getComponents();
-      setComponents(comps);
+  if (loading) return <div className="p-16 text-center text-gray-500">Loading dashboard...</div>;
 
-      const milesMap = {};
-      const compSchedMap = {};
-
-      for (const pt of pts) {
-        const scheds = await db.getSchedules(pt.id);
-        for (const s of scheds) {
-          const miles = await db.getMilestones(s.id);
-          milesMap[s.id] = miles;
-          const compScheds = await db.getComponentSchedules(s.id);
-          compSchedMap[s.id] = compScheds;
-        }
-      }
-
-      setMilestones(milesMap);
-      setComponentSchedules(compSchedMap);
-    } catch (err) {
-      triggerAlert('error', `Failed to load dashboard metrics: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Filter projects
-  const filteredProjects = selectedPtId === 'all' 
-    ? projects 
-    : projects.filter(p => p.product_type_id === parseInt(selectedPtId));
-
-  // Compute KPI metrics
-  const today = new Date().toISOString().split('T')[0];
-  let totalActive = filteredProjects.length;
-  let overdueMilestonesCount = 0;
-  let extremelyUrgentCompsCount = 0;
-  let upcomingRosCount = 0;
-
-  filteredProjects.forEach(p => {
-    const milestones = allMilestones[p.schedule_id] || [];
-    const deadlines = calculateMilestoneDeadlines(p, milestones);
-    const actuals = typeof p.actual_dates === 'string'
-      ? JSON.parse(p.actual_dates || '{}')
-      : (p.actual_dates || {});
-
-    milestones.forEach(m => {
-      const isCompleted = actuals[m.id] !== undefined || m.name.toLowerCase() === 'contract signed';
-      if (!isCompleted) {
-        const target = deadlines[m.id];
-        if (target && target < today) {
-          overdueMilestonesCount++;
-        }
-      }
-    });
-
-    // Check ROS in next 30 days
-    if (p.ros_date >= today) {
-      const diffTime = new Date(p.ros_date) - new Date(today);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays <= 30) {
-        upcomingRosCount++;
-      }
-    }
-
-    const compScheds = allComponentSchedules[p.schedule_id] || [];
-    const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents);
-    computedComps.forEach(cc => {
-      if (cc.urgency === 'Extremely Urgent' || cc.urgency === 'Overdue') {
-        extremelyUrgentCompsCount++;
-      }
-    });
-  });
   return (
     <div className="space-y-6">
-      {/* Dashboard Top Filter Bar */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Executive Operations Dashboard</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Real-time analytics, milestone health metrics, and interactive Gantt timeline visualization.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900">Operations Dashboard</h2>
+          <p className="text-xs text-gray-500 mt-1">Review one product lifecycle, product type health, or component demand.</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 text-xs font-bold text-gray-500">
-            <Filter className="w-4 h-4 text-indigo-600" />
-            <span>Product Type Filter:</span>
-          </div>
-          <select
-            value={selectedPtId}
-            onChange={(e) => setSelectedPtId(e.target.value)}
-            className="py-2 px-3 rounded-lg border border-gray-300 text-xs font-semibold focus:border-indigo-500 focus:outline-none bg-white"
-          >
-            <option value="all">All Product Types ({projects.length} Projects)</option>
-            {productTypes.map(pt => (
-              <option key={pt.id} value={pt.id}>{pt.name}</option>
-            ))}
-          </select>
+        <div className="flex gap-2">
+          {['product', 'productType', 'components'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-2 rounded-lg text-xs font-bold ${activeTab === tab ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {tab === 'product' ? 'Product' : tab === 'productType' ? 'Product Type' : 'Components'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Floating Alert */}
-      {alert && (
-        <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-          alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          <span className="text-sm font-semibold">{alert.message}</span>
-        </div>
+      {alert && <div className={`p-4 rounded-lg border flex items-center gap-3 ${alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}><AlertCircle className="w-5 h-5" /><span className="text-sm font-semibold">{alert.message}</span></div>}
+
+      {activeTab === 'product' && (
+        <>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <label className="block text-xs font-bold text-gray-500 uppercase">Select product</label>
+            <select value={selectedTag} onChange={event => { setSelectedTag(event.target.value); setComparisonRows([]); }} className="mt-2 w-full max-w-xl rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
+              <option value="">Choose a registered product</option>
+              {projects.map(project => <option key={project.tag_no} value={project.tag_no}>{project.tag_no} - {project.customer}</option>)}
+            </select>
+          </div>
+
+          {selectedProject ? <>
+            <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div><h3 className="text-lg font-bold text-gray-900">{selectedProject.tag_no}</h3><p className="text-sm text-gray-500">{selectedProject.product_type_name} / {selectedProject.schedule_name} / {selectedProject.customer}</p></div>
+                <button onClick={() => setShowDetails(value => !value)} className="px-3 py-2 rounded-lg bg-gray-100 text-xs font-bold text-gray-700 hover:bg-gray-200">{showDetails ? 'Hide details' : 'Show details'}</button>
+              </div>
+              {showDetails && <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-gray-100 text-xs">{[['Contract No.', selectedProject.contract_no], ['Sales Ref.', selectedProject.sales_ref], ['PM Owner', selectedProject.pm_owner], ['Engineer', selectedProject.engineer_owner], ['Procurement', selectedProject.procurement_owner], ['Production', selectedProject.production_owner], ['FAT Owner', selectedProject.fat_owner], ['Notes', selectedProject.notes]].map(([label, value]) => <div key={label}><span className="block text-[10px] uppercase font-bold text-gray-400">{label}</span><span className="block mt-1 font-semibold text-gray-700">{value || '-'}</span></div>)}</div>}
+            </section>
+
+            <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-5"><Calendar className="w-5 h-5 text-indigo-600" /><h3 className="font-bold text-gray-900">Milestone timeline</h3></div>
+              <div className="border-l-2 border-indigo-200 ml-3 space-y-5">
+                {datedMilestones.map((milestone, index) => { const previous = datedMilestones[index - 1]; return <div key={milestone.id} className="relative pl-6"><span className="absolute w-3 h-3 bg-indigo-600 rounded-full -left-[7px] top-1" /><div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-sm text-gray-900">{milestone.name}</p><p className="text-xs text-gray-500">{previous ? `${daysBetween(previous.target, milestone.target)} days since ${previous.name}` : 'Root date'}</p></div><span className="text-xs font-bold text-indigo-700">{formatDate(milestone.target, dateFormat)}</span></div></div>; })}
+              </div>
+            </section>
+
+            <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-4"><div className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-indigo-600" /><h3 className="font-bold text-gray-900">Milestone duration comparisons</h3></div><button onClick={addComparisonRow} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><Plus className="w-4 h-4" />Add comparison</button></div>
+              {comparisonRows.length === 0 ? <p className="text-sm text-gray-500">Add a row to compare any two milestones.</p> : <div className="space-y-3">{comparisonRows.map((row, index) => { const start = datedMilestones.find(m => m.id === parseInt(row.start)); const end = datedMilestones.find(m => m.id === parseInt(row.end)); const duration = start && end ? daysBetween(start.target, end.target) : null; const valid = duration !== null && duration >= 0; const rangeStart = datedMilestones[0]?.target; const rangeEnd = datedMilestones[datedMilestones.length - 1]?.target; const rangeSpan = rangeStart && rangeEnd ? Math.max(1, daysBetween(rangeStart, rangeEnd)) : 1; const left = start && rangeStart ? Math.max(0, daysBetween(rangeStart, start.target) / rangeSpan * 100) : 0; const width = valid && start && end ? Math.max(1, daysBetween(start.target, end.target) / rangeSpan * 100) : 0; return <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center"><select value={row.start} onChange={event => updateComparisonRow(index, 'start', event.target.value)} className="rounded border border-gray-300 px-2 py-2 text-xs"><option value="">Start milestone</option>{datedMilestones.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><select value={row.end} onChange={event => updateComparisonRow(index, 'end', event.target.value)} className="rounded border border-gray-300 px-2 py-2 text-xs"><option value="">End milestone</option>{datedMilestones.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={() => removeComparisonRow(index)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Remove comparison"><Trash2 className="w-4 h-4" /></button><div className="md:col-span-3">{duration !== null && !valid ? <p className="text-xs text-red-600">End milestone must occur after the start milestone.</p> : duration !== null && <div className="relative h-8 bg-gray-100 rounded"><div style={{ left: `${left}%`, width: `${width}%` }} className="absolute top-1 bottom-1 bg-indigo-500 rounded" /><span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-700">{duration} days</span></div>}</div></div>; })}</div>}
+            </section>
+          </> : <div className="p-16 text-center text-gray-500 bg-white rounded-lg border border-gray-200">No registered products are available.</div>}
+        </>
       )}
 
-      {/* KPI Summary Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex items-center space-x-4">
-          <div className="p-3.5 bg-indigo-50 text-indigo-600 rounded-xl">
-            <Layers className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Active Projects</span>
-            <span className="text-2xl font-black text-gray-900">{totalActive}</span>
-          </div>
-        </div>
+      {activeTab === 'productType' && <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm"><div className="flex items-center gap-2 mb-4"><Layers className="w-5 h-5 text-indigo-600" /><h3 className="font-bold text-gray-900">Product Type Health</h3></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{productTypes.map(type => <div key={type.id} className="border border-gray-200 rounded-lg p-4"><div className="flex justify-between gap-2"><span className="font-bold text-sm">{type.name}</span><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${type.status === 'valid' ? 'bg-emerald-50 text-emerald-700' : type.status === 'sub-valid' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>{type.status}</span></div><p className="text-xs text-gray-500 mt-3">{type.schedule_count} schedules / {type.component_count} components</p><p className="text-xs text-gray-500 mt-1">{projects.filter(project => project.product_type_id === type.id).length} registered products</p></div>)}</div></section>}
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex items-center space-x-4">
-          <div className="p-3.5 bg-red-50 text-red-600 rounded-xl">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Overdue Milestones</span>
-            <span className={`text-2xl font-black ${overdueMilestonesCount > 0 ? 'text-red-600' : 'text-gray-900'}`}>
-              {overdueMilestonesCount}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex items-center space-x-4">
-          <div className="p-3.5 bg-amber-50 text-amber-600 rounded-xl">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Urgent Component Orders</span>
-            <span className={`text-2xl font-black ${extremelyUrgentCompsCount > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
-              {extremelyUrgentCompsCount}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex items-center space-x-4">
-          <div className="p-3.5 bg-teal-50 text-teal-600 rounded-xl">
-            <Calendar className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">ROS Due (Next 30 Days)</span>
-            <span className="text-2xl font-black text-gray-900">{upcomingRosCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Custom Gantt Chart Timeline View */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-6">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-          <div className="flex items-center space-x-2">
-            <BarChart3 className="w-5 h-5 text-indigo-600" />
-            <h3 className="font-bold text-gray-900 text-lg">Interactive Gantt Chart & Timeline View</h3>
-          </div>
-          <span className="text-xs text-gray-400 font-medium">Visualizing project lifecycles from Contract Signed to ROS delivery</span>
-        </div>
-
-        {filteredProjects.length === 0 ? (
-          <div className="p-16 text-center text-gray-400">
-            <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium text-sm">No projects available for Gantt visualization.</p>
-          </div>
-        ) : (
-          <div className="space-y-6 overflow-x-auto pb-4">
-            {filteredProjects.map(p => {
-              const milestones = allMilestones[p.schedule_id] || [];
-              const deadlines = calculateMilestoneDeadlines(p, milestones);
-              
-              // Calculate span duration
-              const startDt = new Date(p.contract_signed_date);
-              const endDt = new Date(p.ros_date);
-              const totalSpanDays = Math.max(1, Math.ceil((endDt - startDt) / (1000 * 60 * 60 * 24)));
-
-              return (
-                <div key={p.tag_no} className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3 min-w-[700px]">
-                  {/* Project Bar Header */}
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center space-x-3">
-                      <span className="font-black text-gray-900 text-sm">{p.tag_no}</span>
-                      <span className="text-gray-500 font-medium">({p.customer})</span>
-                      <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold text-[10px]">
-                        {p.product_type_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-4 text-gray-500 font-semibold">
-                      <span>Start: {p.contract_signed_date}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
-                      <span>ROS: {p.ros_date}</span>
-                    </div>
-                  </div>
-
-                  {/* Visual Timeline Track */}
-                  <div className="relative pt-6 pb-2">
-                    {/* Background Track Bar */}
-                    <div className="w-full h-3 bg-gray-200 rounded-full relative overflow-hidden">
-                      <div className="absolute top-0 bottom-0 left-0 bg-indigo-600 rounded-full opacity-80 w-full"></div>
-                    </div>
-
-                    {/* Milestone Markers */}
-                    {milestones.map(m => {
-                      const targetDate = deadlines[m.id];
-                      if (!targetDate) return null;
-
-                      // Compute percentage position along timeline track
-                      const mDt = new Date(targetDate);
-                      const daysFromStart = Math.ceil((mDt - startDt) / (1000 * 60 * 60 * 24));
-                      let pct = (daysFromStart / totalSpanDays) * 100;
-                      if (pct < 0) pct = 0;
-                      if (pct > 100) pct = 100;
-
-                      const isDefault = m.name.toLowerCase() === 'contract signed' || m.name.toLowerCase() === 'ros';
-
-                      return (
-                        <div
-                          key={m.id}
-                          style={{ left: `${pct}%` }}
-                          className="absolute top-1 transform -translate-x-1/2 flex flex-col items-center group cursor-pointer"
-                        >
-                          <div className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow ${
-                            isDefault ? 'bg-indigo-900' : 'bg-teal-500'
-                          }`}></div>
-                          <span className="text-[10px] font-bold text-gray-700 mt-1 whitespace-nowrap bg-white px-1.5 py-0.5 rounded shadow-sm border border-gray-100">
-                            {m.name} ({targetDate})
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {activeTab === 'components' && <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm"><div className="flex items-center gap-2 mb-4"><Clock className="w-5 h-5 text-indigo-600" /><h3 className="font-bold text-gray-900">Component Demand</h3></div><p className="text-xs text-gray-500 mb-4">Components currently used by registered product types.</p><div className="divide-y divide-gray-200">{components.length === 0 ? <p className="text-sm text-gray-500">No components available.</p> : components.map(component => { const typeNames = componentUsage[component.id] || []; const projectCount = projects.filter(project => typeNames.includes(project.product_type_name)).length; return <div key={component.id} className="flex items-center justify-between gap-4 py-3 text-sm"><span className="font-semibold">{component.name}</span><span className="text-right text-gray-500">{typeNames.length} product types / {projectCount} registered projects</span></div>; })}</div></section>}
     </div>
   );
 }
-

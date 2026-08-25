@@ -9,7 +9,9 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 - **Unified Milestone Deadline Chaining:** Supports multiple custom milestones anchored to other milestones. Calculations propagate dynamically down tree-like structures based on positive/negative offsets (days) relative to anchor dates.
 - **Component Lead Time Tracking:** Tracks components relative to their milestones and warns of late ordering based on lead times ($Targeted\ Deadline - Lead\ Time = Latest\ Order\ Date$).
 - **Local SQLite Storage:** Self-contained data storage requiring zero cloud APIs or web servers, securing company data locally.
-- **Interactive Gantt & Dashboard Visualizations:** A fully functional dashboard interface containing customized, responsive Gantt Chart visual charts.
+- **Interactive Operations Dashboard:** Separate Product, Product Type, and Components views. Product view supports expandable project information, a vertical milestone timeline with durations, and user-defined milestone comparison bars.
+- **Project Tracker:** Expanded project details, confirmed actual-date display/editing, sortable milestone and component tables, and consistent configurable date formatting.
+- **Settings:** Local date display preference for ISO (`yyyy-mm-dd`) or day-first (`dd-mm-yyyy`) output.
 - **Product Type & Schedule Master Configuration (Phase 4):** A robust registry enabling users to manage product types, build custom milestone dependency graphs, attach raw parts, and establish custom order lead times. Product Type Registry includes validity guidance, searchable component attachment, relationship/timeline/record views, and per-schedule completion feedback.
 - **Interactive Milestone Tree Diagram (Phase 4):** Visualizes the recursive hierarchical anchors and offset relations of custom milestones starting from root boundary boundaries.
 - **Phase 4 CSV Import & Export Enablers:** Dedicated flat CSV parsers/stringifiers allowing instant local backups or communication transfers of Product Types and Schedule Configurations.
@@ -38,9 +40,11 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 │       ├── App.jsx         # Main Tabbed sidebar layout and navigation
 │       ├── index.css       # Tailwind entry point
 │       ├── components/
-│       │   └── ProductTypeManager.jsx # Product Type & Schedule Configuration Dashboard (Phase 4)
+│       │   ├── ProductTypeManager.jsx # Product Type & Schedule Configuration Dashboard (Phase 4)
+│       │   └── Settings.jsx  # Workspace display settings
 │       └── utils/
-│           ├── csv.js       # RFC 4180 CSV parsing & serialization utilities (Phase 4)
+│           ├── csv.js        # RFC 4180 CSV parsing & serialization utilities (Phase 4)
+│           ├── date.js       # Shared date format preference and display helpers
 │           └── scheduler.js # Core calculation engine (milestone & component rules)
 ├── index.html              # Frontend DOM mount
 ├── docs_logs/              # Internal plans, test reports, changelog, and project records

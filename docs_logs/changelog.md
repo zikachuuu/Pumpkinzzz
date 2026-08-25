@@ -2,6 +2,19 @@
 
 This changelog documents the development history, structural designs, and code files added/modified for the Pumpkinzzz project schedule tracking application.
 
+## [1.0.0-dev] - 2026-08-26 (Sections 2-5)
+
+### Changed
+- **`src/renderer/components/ProjectTracker.jsx`:** Added an expandable project information panel, moved project editing beside that panel, displayed confirmed actual dates as text with an edit action, added date-format-aware output, and added independent sorting controls for milestone and component columns.
+- **`src/renderer/components/Dashboard.jsx`:** Replaced the KPI-first view with Product, Product Type, and Components tabs. Product view now selects a project, shows expandable details, renders a vertical milestone timeline with consecutive durations, and supports user-defined milestone comparison bars with chronological validation.
+- **`src/renderer/components/Settings.jsx` and `src/renderer/utils/date.js`:** Added a persistent local date-format setting supporting `yyyy-mm-dd` and `dd-mm-yyyy`, shared across dashboard and tracker displays.
+- **`src/renderer/App.jsx`:** Added Settings navigation and passed the date preference to date-dependent screens.
+
+### Verification
+- `conda run -n pumpkinzzz-env npm run build:frontend` completed successfully after each implementation slice.
+- `conda run -n pumpkinzzz-env node scripts/check-phases.js` passed all repository checks.
+- Editor diagnostics reported no errors in the touched renderer files.
+
 ## [1.0.0-dev] - 2026-08-26
 
 ### Changed

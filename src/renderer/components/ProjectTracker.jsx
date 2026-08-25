@@ -7,8 +7,9 @@ import {
 import * as db from '../utils/db';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../utils/scheduler';
 import { stringifyCSV } from '../utils/csv';
+import { formatDate } from '../utils/date';
 
-export default function ProjectTracker({ onRedirectToRegistry }) {
+export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   // Global reference states
   const [projects, setProjects] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
@@ -27,6 +28,9 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
   const [ptFilter, setPtFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, overdue
   const [sortBy, setSortBy] = useState('tag_no');
+  const [milestoneSort, setMilestoneSort] = useState({ key: 'target', direction: 'asc' });
+  const [componentSort, setComponentSort] = useState({ key: 'latest', direction: 'asc' });
+  const [editingActual, setEditingActual] = useState(null);
 
   // Edit Modal State
   const [editingProject, setEditingProject] = useState(null);
@@ -136,10 +140,23 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
       // Reload projects list to reflect updated target deadlines
       const updatedProjs = await db.getProjects();
       setProjects(updatedProjs);
+      setEditingActual(null);
     } catch (err) {
       triggerAlert('error', `Failed to update actual date: ${err.message}`);
     }
   };
+
+  const sortRows = (rows, sortState) => [...rows].sort((first, second) => {
+    const firstValue = String(first[sortState.key] ?? '').toLowerCase();
+    const secondValue = String(second[sortState.key] ?? '').toLowerCase();
+    const result = firstValue.localeCompare(secondValue, undefined, { numeric: true });
+    return sortState.direction === 'asc' ? result : -result;
+  });
+
+  const toggleTableSort = (setter, key) => setter(current => ({
+    key,
+    direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+  }));
 
   // ==========================================
   // PROJECT CRUD HANDLERS
@@ -402,7 +419,7 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">ROS Deadline</span>
-                      <span className="text-xs font-bold text-indigo-600">{p.ros_date}</span>
+                      <span className="text-xs font-bold text-indigo-600">{formatDate(p.ros_date, dateFormat)}</span>
                     </div>
                   </div>
 
@@ -412,16 +429,6 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
                     </span>
 
                     <div className="flex items-center space-x-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditModal(p);
-                        }}
-                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition"
-                        title="Edit Project"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -442,12 +449,53 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
                 {/* Expanded Project Details */}
                 {isExpanded && (
                   <div className="border-t border-gray-100 bg-gray-50/50 p-6 space-y-8">
+                    <section className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                        <h4 className="font-bold text-gray-900 text-sm">Project information</h4>
+                        <button
+                          onClick={() => handleOpenEditModal(p)}
+                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          title="Edit project information"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 text-xs">
+                        {[
+                          ['Description', p.description], ['Contract No.', p.contract_no],
+                          ['Sales Ref.', p.sales_ref], ['Project Manager', p.pm_owner],
+                          ['Engineer', p.engineer_owner], ['Procurement', p.procurement_owner],
+                          ['Production', p.production_owner], ['FAT Owner', p.fat_owner]
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <span className="block text-[10px] uppercase font-bold text-gray-400">{label}</span>
+                            <span className="block mt-1 font-semibold text-gray-700 break-words">{value || '-'}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {p.notes && <p className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-600">Notes: {p.notes}</p>}
+                    </section>
+
                     {/* Milestones Schedule Table */}
                     <div>
-                      <h4 className="font-bold text-gray-900 text-sm mb-3 flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-indigo-600" />
-                        <span>Milestones Target Deadlines & Actual Progress</span>
-                      </h4>
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <h4 className="font-bold text-gray-900 text-sm flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-indigo-600" />
+                          <span>Milestones Target Deadlines & Actual Progress</span>
+                        </h4>
+                        <select
+                          value={milestoneSort.key}
+                          onChange={(e) => toggleTableSort(setMilestoneSort, e.target.value)}
+                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                          title="Sort milestone table"
+                        >
+                          <option value="name">Sort: Milestone</option>
+                          <option value="anchor">Sort: Anchor</option>
+                          <option value="target">Sort: Target date</option>
+                          <option value="actual">Sort: Actual date</option>
+                          <option value="statusText">Sort: Status</option>
+                        </select>
+                      </div>
 
                       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                         <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -469,7 +517,14 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
                                 : (p.actual_dates || {});
                               const today = new Date().toISOString().split('T')[0];
 
-                              return milestones.map(m => {
+                              const sortedMilestones = sortRows(milestones.map(m => ({
+                                ...m,
+                                anchor: milestones.find(a => a.id === m.anchor_id)?.name,
+                                target: deadlines[m.id],
+                                actual: actuals[m.id],
+                                statusText: actuals[m.id] ? 'Completed' : deadlines[m.id] < today ? 'Overdue' : 'On Track'
+                              })), milestoneSort);
+                              return sortedMilestones.map(m => {
                                 const target = deadlines[m.id] || '-';
                                 const actual = actuals[m.id] || '';
                                 const isContractSigned = m.name.toLowerCase() === 'contract signed';
@@ -501,10 +556,15 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
                                   <tr key={m.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
                                     <td className="px-4 py-3 text-gray-500">{isContractSigned || !anchor ? 'Root Boundary' : anchor.name}</td>
-                                    <td className="px-4 py-3 font-bold text-indigo-700">{target}</td>
+                                    <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(target, dateFormat)}</td>
                                     <td className="px-4 py-3">
                                       {isContractSigned ? (
-                                        <span className="font-semibold text-gray-600">{p.contract_signed_date} (Locked)</span>
+                                        <span className="font-semibold text-gray-600">{formatDate(p.contract_signed_date, dateFormat)} (Locked)</span>
+                                      ) : actual && editingActual !== `${p.tag_no}-${m.id}` ? (
+                                        <span className="inline-flex items-center gap-2 font-semibold text-emerald-700">
+                                          {formatDate(actual, dateFormat)}
+                                          <button type="button" onClick={() => setEditingActual(`${p.tag_no}-${m.id}`)} className="p-1 text-gray-500 hover:text-indigo-600" title="Edit actual completion date"><Edit2 className="w-3.5 h-3.5" /></button>
+                                        </span>
                                       ) : (
                                         <input
                                           type="date"
@@ -530,10 +590,24 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
 
                     {/* Component Order Deadlines Table */}
                     <div>
-                      <h4 className="font-bold text-gray-900 text-sm mb-3 flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-indigo-600" />
-                        <span>Component Order Deadlines & Lead Times</span>
-                      </h4>
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <h4 className="font-bold text-gray-900 text-sm flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-indigo-600" />
+                          <span>Component Order Deadlines & Lead Times</span>
+                        </h4>
+                        <select
+                          value={componentSort.key}
+                          onChange={(e) => toggleTableSort(setComponentSort, e.target.value)}
+                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                          title="Sort component table"
+                        >
+                          <option value="name">Sort: Component</option>
+                          <option value="anchor">Sort: Anchor</option>
+                          <option value="lead_time">Sort: Lead time</option>
+                          <option value="latest">Sort: Latest order date</option>
+                          <option value="urgency">Sort: Urgency</option>
+                        </select>
+                      </div>
 
                       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                         <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -571,14 +645,15 @@ export default function ProjectTracker({ onRedirectToRegistry }) {
                                 'Pending': 'text-gray-600 bg-gray-100 border-gray-200'
                               };
 
-                              return computedComps.map(cc => {
+                              const sortedComponents = sortRows(computedComps.map(cc => ({ ...cc, anchor: milestones.find(m => m.id === cc.anchor_milestone_id)?.name, latest: cc.latest_order_date })), componentSort);
+                              return sortedComponents.map(cc => {
                                 const anchorM = milestones.find(m => m.id === cc.anchor_milestone_id);
                                 return (
                                   <tr key={cc.component_id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 font-semibold text-gray-900">{cc.name}</td>
                                     <td className="px-4 py-3 text-gray-500">{anchorM ? anchorM.name : 'ROS'}</td>
                                     <td className="px-4 py-3 font-medium">{cc.lead_time} days</td>
-                                    <td className="px-4 py-3 font-bold text-indigo-700">{cc.latest_order_date || 'N/A'}</td>
+                                    <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(cc.latest_order_date, dateFormat)}</td>
                                     <td className="px-4 py-3">
                                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${urgencyColors[cc.urgency] || 'bg-gray-100 text-gray-800'}`}>
                                         {cc.urgency.toUpperCase()} {cc.days_until_need !== null ? `(${cc.days_until_need}d left)` : ''}
