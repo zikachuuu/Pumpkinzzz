@@ -78,6 +78,9 @@ export default function ProductTypeManager() {
       triggerAlert('error', `Failed to load product types: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
   // Select Product Type Detail Handler
   const handleSelectProductType = async (pt) => {
     setSelectedPt(pt);
@@ -208,9 +211,6 @@ export default function ProductTypeManager() {
       }
     } catch (err) {
       triggerAlert('error', `Failed to delete Product Type: ${err.message}`);
-    }
-  };
-
     }
   };
 
