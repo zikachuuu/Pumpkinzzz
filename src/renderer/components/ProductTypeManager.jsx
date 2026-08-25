@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Edit, ChevronRight, ArrowLeft, Download, Upload, 
   Search, CheckCircle2, AlertCircle, Settings, Layers, Calendar, 
-  Tag, Info, Check, RefreshCw
+  Tag, Info, Check, RefreshCw, X
 } from 'lucide-react';
 import * as db from '../utils/db';
 import { 
   parseCSV, 
   stringifyProductTypes, 
-  stringifySchedulesAndMilestones 
+  stringifySchedulesAndMilestones,
+  stringifyProductTypesTemplate,
+  stringifySchedulesTemplate
 } from '../utils/csv';
 
 export default function ProductTypeManager() {
@@ -23,6 +25,8 @@ export default function ProductTypeManager() {
   // Modal / Dialog States
   const [showAddPtModal, setShowAddPtModal] = useState(false);
   const [ptNameInput, setPtNameInput] = useState('');
+  const [ptModalError, setPtModalError] = useState('');
+  const [showValidityModal, setShowValidityModal] = useState(false);
   const [ptRenameId, setPtRenameId] = useState(null);
   const [ptRenameInput, setPtRenameInput] = useState('');
 
@@ -34,6 +38,8 @@ export default function ProductTypeManager() {
   const [schedules, setSchedules] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [milestones, setMilestones] = useState([]);
+  const [scheduleValidity, setScheduleValidity] = useState({});
+  const [scheduleSubView, setScheduleSubView] = useState('tree'); // 'tree', 'timeline', 'records'
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   const [scheduleNameInput, setScheduleNameInput] = useState('');
 
@@ -43,13 +49,18 @@ export default function ProductTypeManager() {
   const [milestoneForm, setMilestoneForm] = useState({
     name: '',
     anchor_id: '',
-    offset: 0,
+    days: 0,
+    direction: 'after', // 'after' or 'before'
     remark: ''
   });
 
   // Components Management State
   const [attachedComponents, setAttachedComponents] = useState([]);
   const [allGlobalComponents, setAllGlobalComponents] = useState([]);
+  const [componentProductTypeSearch, setComponentProductTypeSearch] = useState('');
+  const [componentProductTypeId, setComponentProductTypeId] = useState('');
+  const [sourceComponents, setSourceComponents] = useState([]);
+  const [componentSearch, setComponentSearch] = useState('');
   const [showAddComponentModal, setShowAddComponentModal] = useState(false);
   const [componentForm, setComponentForm] = useState({ name: '', remarks: '' });
   const [selectedGlobalComponentId, setSelectedGlobalComponentId] = useState('');
@@ -93,6 +104,8 @@ export default function ProductTypeManager() {
       
       const attached = await db.getAttachedComponents(pt.id);
       setAttachedComponents(attached);
+      setComponentProductTypeId(String(pt.id));
+      await refreshScheduleValidity(scheds, attached);
 
       // Select first schedule by default
       if (scheds.length > 0) {
@@ -144,6 +157,7 @@ export default function ProductTypeManager() {
       
       const attached = await db.getAttachedComponents(selectedPt.id);
       setAttachedComponents(attached);
+      await refreshScheduleValidity(scheds, attached);
 
       if (selectedSchedule) {
         const stillExists = scheds.find(s => s.id === selectedSchedule.id);
@@ -170,15 +184,23 @@ export default function ProductTypeManager() {
   const handleAddProductType = async (e) => {
     e.preventDefault();
     if (!ptNameInput.trim()) return;
+    setPtModalError('');
+
+    const exists = productTypes.some(pt => pt.name.toLowerCase() === ptNameInput.trim().toLowerCase());
+    if (exists) {
+      setPtModalError('Product type already exists');
+      return;
+    }
 
     try {
       await db.addProductType(ptNameInput.trim());
       setPtNameInput('');
       setShowAddPtModal(false);
-      triggerAlert('success', 'Product Type created successfully!');
+      setPtModalError('');
+      triggerAlert('success', 'Product Type created as [INVALID]. Please configure schedules, milestones, and component lead times before use.');
       loadProductTypes();
     } catch (err) {
-      triggerAlert('error', `Failed to create Product Type: ${err.message}`);
+      setPtModalError(err.message);
     }
   };
 
@@ -222,6 +244,33 @@ export default function ProductTypeManager() {
       console.error('Failed to load global components', err);
     }
   };
+
+  const refreshScheduleValidity = async (scheduleList, components = attachedComponents) => {
+    const validityEntries = await Promise.all(scheduleList.map(async schedule => {
+      const configured = await db.getComponentSchedules(schedule.id);
+      const isValid = components.length > 0 && configured.length >= components.length;
+      return [schedule.id, {
+        isValid,
+        reason: components.length === 0
+          ? 'Attach at least one component first.'
+          : isValid
+            ? 'All attached components have lead times for this schedule.'
+            : 'Indicate lead time for every attached component.'
+      }];
+    }));
+    setScheduleValidity(Object.fromEntries(validityEntries));
+  };
+
+  useEffect(() => {
+    if (!componentProductTypeId) {
+      setSourceComponents([]);
+      return;
+    }
+
+    db.getAttachedComponents(parseInt(componentProductTypeId))
+      .then(setSourceComponents)
+      .catch(err => triggerAlert('error', `Failed to load product type components: ${err.message}`));
+  }, [componentProductTypeId]);
   // ==========================================
   // SCHEDULES CRUD
   // ==========================================
@@ -272,7 +321,8 @@ export default function ProductTypeManager() {
       setMilestoneForm({
         name: milestone.name,
         anchor_id: milestone.anchor_id || '',
-        offset: milestone.offset,
+        days: Math.abs(milestone.offset),
+        direction: milestone.offset < 0 ? 'before' : 'after',
         remark: milestone.remark || ''
       });
     } else {
@@ -283,7 +333,8 @@ export default function ProductTypeManager() {
       setMilestoneForm({
         name: '',
         anchor_id: defaultAnchor,
-        offset: 0,
+        days: 0,
+        direction: 'after',
         remark: ''
       });
     }
@@ -317,11 +368,14 @@ export default function ProductTypeManager() {
       return;
     }
 
+    const rawDays = parseInt(milestoneForm.days) || 0;
+    const computedOffset = milestoneForm.direction === 'before' ? -rawDays : rawDays;
+
     const payload = {
       schedule_id: selectedSchedule.id,
       name: milestoneForm.name.trim(),
       anchor_id: finalAnchorId,
-      offset: isDefault ? 0 : parseInt(milestoneForm.offset) || 0,
+      offset: isDefault ? 0 : computedOffset,
       remark: milestoneForm.remark.trim()
     };
 
@@ -444,7 +498,39 @@ export default function ProductTypeManager() {
       
       // Update validity status of the product type
       await db.updateProductTypeStatus(selectedPt.id);
+      await refreshScheduleValidity(schedules, attachedComponents);
       triggerAlert('success', 'Component schedule lead times saved and status updated!');
+      await refreshPtDetails();
+    } catch (err) {
+      triggerAlert('error', `Failed to save lead times: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveLeadTimesForSchedule = async (scheduleId) => {
+    if (!selectedPt) return;
+    setLoading(true);
+    try {
+      const schedMilestones = await db.getMilestones(scheduleId);
+      const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id
+                           || schedMilestones[0]?.id;
+
+      for (const c of attachedComponents) {
+        const key = `${c.id}-${scheduleId}`;
+        const config = leadTimeSettings[key];
+
+        const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
+        const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
+
+        if (anchorId) {
+          await db.saveComponentSchedule(scheduleId, c.id, anchorId, leadTime);
+        }
+      }
+
+      await db.updateProductTypeStatus(selectedPt.id);
+      await refreshScheduleValidity(schedules, attachedComponents);
+      triggerAlert('success', 'Lead times saved successfully for this schedule!');
       await refreshPtDetails();
     } catch (err) {
       triggerAlert('error', `Failed to save lead times: ${err.message}`);
@@ -802,8 +888,9 @@ export default function ProductTypeManager() {
     return roots.map(findChildren);
   };
 
-  const renderTreeNodes = (node) => {
+  const renderTreeNodes = (node, milestoneList) => {
     const isDefault = node.name.toLowerCase() === 'contract signed' || node.name.toLowerCase() === 'ros';
+    const relation = formatMilestoneRelation(node, milestoneList);
     
     return (
       <div key={node.id} className="ml-6 border-l border-indigo-200 pl-4 my-2 relative">
@@ -828,7 +915,7 @@ export default function ProductTypeManager() {
             </div>
             {!isDefault && (
               <span className="text-xs text-gray-500 font-medium mt-0.5 block">
-                {node.offset >= 0 ? `+${node.offset}` : node.offset} Days from Anchor
+                {relation}
               </span>
             )}
             {node.remark && (
@@ -861,7 +948,7 @@ export default function ProductTypeManager() {
         
         {node.children && node.children.length > 0 && (
           <div className="mt-1">
-            {node.children.map(child => renderTreeNodes(child))}
+            {node.children.map(child => renderTreeNodes(child, milestoneList))}
           </div>
         )}
       </div>
@@ -890,6 +977,69 @@ export default function ProductTypeManager() {
       }
       return 0;
     });
+
+  const handleDownloadSchedTemplate = async () => {
+    try {
+      const csvContent = stringifySchedulesTemplate();
+      const saveRes = await window.electronAPI.showSaveDialog({
+        title: 'Save Schedules CSV Template',
+        defaultPath: 'schedules_template.csv',
+        filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+      });
+      if (!saveRes.canceled && saveRes.filePath) {
+        await window.electronAPI.writeFileContent(saveRes.filePath, csvContent);
+        triggerAlert('success', 'Schedules template downloaded successfully!');
+      }
+    } catch (err) {
+      triggerAlert('error', `Download failed: ${err.message}`);
+    }
+  };
+
+  const handleDownloadPtTemplate = async () => {
+    try {
+      const csvContent = stringifyProductTypesTemplate();
+      const saveRes = await window.electronAPI.showSaveDialog({
+        title: 'Save Product Types CSV Template',
+        defaultPath: 'product_types_template.csv',
+        filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+      });
+      if (!saveRes.canceled && saveRes.filePath) {
+        await window.electronAPI.writeFileContent(saveRes.filePath, csvContent);
+        triggerAlert('success', 'Product Types template downloaded successfully!');
+      }
+    } catch (err) {
+      triggerAlert('error', `Download failed: ${err.message}`);
+    }
+  };
+
+  const formatMilestoneRelation = (m, milestoneList) => {
+    const isDefault = m.name.toLowerCase() === 'contract signed' || m.name.toLowerCase() === 'ros';
+    if (isDefault) return 'Root Boundary';
+    const anchor = milestoneList.find(a => a.id === m.anchor_id);
+    const anchorName = anchor ? anchor.name : 'Anchor';
+    const absOffset = Math.abs(m.offset);
+    const relation = m.offset < 0 ? 'before' : 'after';
+    return `${absOffset} days ${relation} ${anchorName}`;
+  };
+
+  const buildMilestoneTimeline = (milestoneList, root) => {
+    const timeline = [];
+    const visit = (milestone, relativeDays, visited = new Set()) => {
+      if (visited.has(milestone.id)) return;
+      const nextVisited = new Set(visited).add(milestone.id);
+      timeline.push({ ...milestone, relativeDays });
+      milestoneList
+        .filter(child => child.anchor_id === milestone.id)
+        .forEach(child => visit(child, relativeDays + Number(child.offset || 0), nextVisited));
+    };
+    visit(root, 0);
+    return timeline.sort((a, b) => a.relativeDays - b.relativeDays || a.id - b.id);
+  };
+
+  const getScheduleValidity = (schedule) => scheduleValidity[schedule.id] || {
+    isValid: false,
+    reason: 'Lead-time status is loading.'
+  };
 
   // ==========================================
   // VIEW RENDERERS
@@ -934,17 +1084,24 @@ export default function ProductTypeManager() {
           
           <div className="flex items-center space-x-3">
             <button
-              onClick={handleExportSchedules}
-              className="flex items-center space-x-2 px-4 py-2 border border-indigo-200 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 text-sm font-semibold transition"
+              onClick={handleDownloadSchedTemplate}
+              className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5 text-gray-500" />
+              <span>Get Schedule Template</span>
+            </button>
+            <button
+              onClick={handleExportSchedules}
+              className="flex items-center space-x-2 px-3.5 py-2 border border-indigo-200 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 text-xs font-semibold transition"
+            >
+              <Download className="w-3.5 h-3.5" />
               <span>Export Schedules CSV</span>
             </button>
             <button
               onClick={handleImportSchedules}
-              className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition"
+              className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
             >
-              <Upload className="w-4 h-4 text-gray-500" />
+              <Upload className="w-3.5 h-3.5 text-gray-500" />
               <span>Import Schedules CSV</span>
             </button>
           </div>
@@ -1028,7 +1185,17 @@ export default function ProductTypeManager() {
                           : 'border-gray-200 hover:bg-gray-50 text-gray-700'
                       }`}
                     >
-                      <span>{s.name}</span>
+                      <span className="min-w-0 truncate">{s.name}</span>
+                      <span
+                        title={getScheduleValidity(s).reason}
+                        className={`ml-2 shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          getScheduleValidity(s).isValid
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                      >
+                        {getScheduleValidity(s).isValid ? 'VALID' : 'INCOMPLETE'}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1073,8 +1240,28 @@ export default function ProductTypeManager() {
                     </button>
                   </div>
 
+                  <div className="flex flex-wrap gap-2 border-b border-gray-100 pb-4">
+                    {[
+                      ['tree', 'Relationship Tree'],
+                      ['timeline', 'Chronological Timeline'],
+                      ['records', 'Master Records']
+                    ].map(([view, label]) => (
+                      <button
+                        key={view}
+                        onClick={() => setScheduleSubView(view)}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition ${
+                          scheduleSubView === view
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
                   {/* VISUAL TREE DIAGRAM */}
-                  <div>
+                  {scheduleSubView === 'tree' && <div>
                     <h4 className="font-semibold text-gray-800 text-sm mb-4 flex items-center space-x-2">
                       <Layers className="w-4 h-4 text-indigo-500" />
                       <span>Milestone Relationship Tree Diagram</span>
@@ -1100,15 +1287,41 @@ export default function ProductTypeManager() {
                             </div>
                             
                             {/* Children recursively */}
-                            {rootNode.children && rootNode.children.map(child => renderTreeNodes(child))}
+                            {rootNode.children && rootNode.children.map(child => renderTreeNodes(child, milestones))}
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </div>}
+
+                  {scheduleSubView === 'timeline' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {buildMilestoneTree(milestones).map(rootNode => {
+                        const timeline = buildMilestoneTimeline(milestones, rootNode);
+                        return (
+                          <div key={rootNode.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <h4 className="font-bold text-sm text-indigo-900 border-b border-gray-200 pb-3 mb-4">
+                              {rootNode.name} timeline
+                            </h4>
+                            <div className="relative border-l-2 border-indigo-200 ml-2 space-y-4">
+                              {timeline.map(item => (
+                                <div key={item.id} className="relative pl-5">
+                                  <span className="absolute w-2.5 h-2.5 bg-indigo-600 rounded-full -left-[7px] top-1.5" />
+                                  <p className="font-semibold text-sm text-gray-900">{item.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {item.relativeDays === 0 ? 'Root date' : `${Math.abs(item.relativeDays)} days ${item.relativeDays < 0 ? 'before' : 'after'} ${rootNode.name}`}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* FLAT LIST TABLE */}
-                  <div>
+                  {scheduleSubView === 'records' && <div>
                     <h4 className="font-semibold text-gray-800 text-sm mb-3">Milestone Master Records</h4>
                     <div className="overflow-x-auto border border-gray-200 rounded-lg">
                       <table className="min-w-full divide-y divide-gray-200">
@@ -1116,7 +1329,8 @@ export default function ProductTypeManager() {
                           <tr>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Milestone</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Anchor Basis</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Offset (Days)</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Days</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Timing</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks</th>
                             <th className="relative px-6 py-3"></th>
                           </tr>
@@ -1132,7 +1346,10 @@ export default function ProductTypeManager() {
                                   {isDefault ? 'None (Root Boundary)' : anchor ? anchor.name : 'Unknown Anchor'}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap font-medium">
-                                  {isDefault ? '0' : `${m.offset > 0 ? '+' : ''}${m.offset} days`}
+                                  {isDefault ? '0' : Math.abs(m.offset)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap font-medium">
+                                  {isDefault ? 'Root boundary' : m.offset < 0 ? 'Before anchor' : 'After anchor'}
                                 </td>
                                 <td className="px-6 py-4 text-xs max-w-xs truncate text-gray-500" title={m.remark}>
                                   {m.remark || '-'}
@@ -1142,15 +1359,17 @@ export default function ProductTypeManager() {
                                     <>
                                       <button
                                         onClick={() => handleOpenMilestoneModal(m)}
-                                        className="text-indigo-600 hover:text-indigo-950"
+                                        className="p-1.5 text-indigo-600 hover:text-indigo-950 hover:bg-indigo-50 rounded"
+                                        title="Edit milestone"
                                       >
-                                        Edit
+                                        <Edit className="w-4 h-4" />
                                       </button>
                                       <button
                                         onClick={() => handleDeleteMilestone(m.id)}
-                                        className="text-red-600 hover:text-red-950"
+                                        className="p-1.5 text-red-600 hover:text-red-950 hover:bg-red-50 rounded"
+                                        title="Delete milestone"
                                       >
-                                        Delete
+                                        <Trash2 className="w-4 h-4" />
                                       </button>
                                     </>
                                   )}
@@ -1161,7 +1380,7 @@ export default function ProductTypeManager() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                  </div>}
                 </div>
               )}
             </div>
@@ -1180,23 +1399,49 @@ export default function ProductTypeManager() {
                   <span>Attach Existing Component</span>
                 </h3>
                 <div className="space-y-3">
+                  <input
+                    type="search"
+                    value={componentProductTypeSearch}
+                    onChange={(e) => setComponentProductTypeSearch(e.target.value)}
+                    placeholder="Search product types..."
+                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <select
+                    value={componentProductTypeId}
+                    onChange={(e) => {
+                      setComponentProductTypeId(e.target.value);
+                      setSelectedGlobalComponentId('');
+                    }}
+                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="">1. Choose a product type</option>
+                    {productTypes
+                      .filter(pt => pt.name.toLowerCase().includes(componentProductTypeSearch.toLowerCase()))
+                      .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
+                  </select>
                   <select
                     value={selectedGlobalComponentId}
                     onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    disabled={!componentProductTypeId}
+                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
                   >
-                    <option value="">-- Choose Component --</option>
-                    {allGlobalComponents
-                      .filter(gc => !attachedComponents.some(ac => ac.id === gc.id))
-                      .map(gc => (
-                        <option key={gc.id} value={gc.id}>
-                          {gc.name}
-                        </option>
-                      ))}
+                    <option value="">2. Choose a component</option>
+                    {sourceComponents
+                      .filter(component => !attachedComponents.some(attached => attached.id === component.id))
+                      .filter(component => component.name.toLowerCase().includes(componentSearch.toLowerCase()))
+                      .map(component => <option key={component.id} value={component.id}>{component.name}</option>)}
                   </select>
+                  <input
+                    type="search"
+                    value={componentSearch}
+                    onChange={(e) => setComponentSearch(e.target.value)}
+                    placeholder="Search components..."
+                    disabled={!componentProductTypeId}
+                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
+                  />
                   <button
                     onClick={handleAttachExistingComponent}
-                    disabled={!selectedGlobalComponentId}
+                    disabled={!selectedGlobalComponentId || !componentProductTypeId}
                     className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow disabled:bg-gray-300 disabled:cursor-not-allowed transition"
                   >
                     Attach Component
@@ -1320,9 +1565,24 @@ export default function ProductTypeManager() {
 
                   return (
                     <div key={s.id} className="border border-gray-200 rounded-lg p-5 bg-gray-50/50 space-y-4">
-                      <h4 className="font-bold text-gray-900 text-sm border-b border-gray-200 pb-2">
-                        Schedule: <span className="text-indigo-700">{s.name}</span>
-                      </h4>
+                      <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2">
+                        <h4 className="font-bold text-gray-900 text-sm">
+                          Schedule: <span className="text-indigo-700">{s.name}</span>
+                        </h4>
+                        <span
+                          title={getScheduleValidity(s).reason}
+                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            getScheduleValidity(s).isValid
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}
+                        >
+                          {getScheduleValidity(s).isValid ? 'VALID' : 'INCOMPLETE'}
+                        </span>
+                      </div>
+                      {!getScheduleValidity(s).isValid && (
+                        <p className="text-xs text-amber-700">{getScheduleValidity(s).reason}</p>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {attachedComponents.map(c => {
                           const key = `${c.id}-${s.id}`;
@@ -1454,18 +1714,29 @@ export default function ProductTypeManager() {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase">Offset Days</label>
-                      <input
-                        type="number"
-                        value={milestoneForm.offset}
-                        onChange={(e) => setMilestoneForm({ ...milestoneForm, offset: e.target.value })}
-                        placeholder="e.g. -10 for 10 days before anchor, 15 for 15 days after"
-                        className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none"
-                      />
-                      <span className="text-[10px] text-gray-400 mt-1 block">
-                        Use positive values for days after anchor, negative values for days before anchor.
-                      </span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase">Deadline Happens (Days)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={milestoneForm.days}
+                          onChange={(e) => setMilestoneForm({ ...milestoneForm, days: e.target.value })}
+                          placeholder="e.g. 14"
+                          className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase">Timing</label>
+                        <select
+                          value={milestoneForm.direction}
+                          onChange={(e) => setMilestoneForm({ ...milestoneForm, direction: e.target.value })}
+                          className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none bg-white"
+                        >
+                          <option value="after">Days After Anchor</option>
+                          <option value="before">Days Before Anchor</option>
+                        </select>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1517,25 +1788,42 @@ export default function ProductTypeManager() {
     <div className="space-y-6">
       {/* Top action cards & CSV triggers */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Product Types Master Registry</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Create, view, edit, and configure structural requirements for Chillers, Cooling Systems, and more.
-          </p>
+        <div className="flex items-center space-x-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Product Type Registry</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Create, view, edit, and configure structural requirements for Chillers, Cooling Systems, and more.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowValidityModal(true)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-bold transition shadow-sm"
+            title="Understand Product Type Validity Statuses"
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>? Status Guide</span>
+          </button>
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={handleExportProductTypes}
-            className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition"
+            onClick={handleDownloadPtTemplate}
+            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
           >
-            <Download className="w-4 h-4 text-gray-500" />
+            <Download className="w-3.5 h-3.5 text-gray-500" />
+            <span>Get CSV Template</span>
+          </button>
+          <button
+            onClick={handleExportProductTypes}
+            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
+          >
+            <Download className="w-3.5 h-3.5 text-gray-500" />
             <span>Export CSV</span>
           </button>
           <button
             onClick={handleImportProductTypes}
-            className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition"
+            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
           >
-            <Upload className="w-4 h-4 text-gray-500" />
+            <Upload className="w-3.5 h-3.5 text-gray-500" />
             <span>Import CSV</span>
           </button>
           <button
@@ -1695,8 +1983,19 @@ export default function ProductTypeManager() {
       {/* MODAL: ADD PRODUCT TYPE */}
       {showAddPtModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6">
-            <h3 className="font-bold text-lg text-gray-900 mb-4">Create New Product Type</h3>
+          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6 space-y-4">
+            <h3 className="font-bold text-lg text-gray-900">Create New Product Type</h3>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed">
+              <strong>Notice:</strong> Newly created product types are initialized as <strong>[INVALID]</strong>. You must promptly configure schedules, milestones, and component lead times before this product type can be selected for projects.
+            </p>
+
+            {ptModalError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs font-bold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{ptModalError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleAddProductType} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-600 uppercase">Product Type Name</label>
@@ -1704,7 +2003,10 @@ export default function ProductTypeManager() {
                   type="text"
                   required
                   value={ptNameInput}
-                  onChange={(e) => setPtNameInput(e.target.value)}
+                  onChange={(e) => {
+                    setPtNameInput(e.target.value);
+                    if (ptModalError) setPtModalError('');
+                  }}
                   placeholder="e.g. Water Chiller, Air Chiller"
                   className="mt-1.5 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
@@ -1715,6 +2017,7 @@ export default function ProductTypeManager() {
                   onClick={() => {
                     setShowAddPtModal(false);
                     setPtNameInput('');
+                    setPtModalError('');
                   }}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
                 >
@@ -1728,6 +2031,53 @@ export default function ProductTypeManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: VALIDITY STATUS GUIDE */}
+      {showValidityModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="font-bold text-lg text-gray-900">Product Type Validity Status Guide</h3>
+              <button
+                onClick={() => setShowValidityModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
+              <p>
+                Every product type in Pumpkinzzz maintains a validity status that governs whether it can be used for registering new project orders:
+              </p>
+
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
+                <strong className="block text-red-950 mb-1">🔴 INVALID (Default for new records)</strong>
+                A product type is invalid when it has no attached components, no schedules, or lacks component lead-time configurations. Invalid product types <strong>cannot</strong> be used for new projects.
+              </div>
+
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                <strong className="block text-amber-950 mb-1">🟡 SUB-VALID</strong>
+                A product type is sub-valid if it has at least one schedule fully associated with its complete component lead-time configuration. Sub-valid product types can be used for projects using those configured schedules.
+              </div>
+
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
+                <strong className="block text-emerald-950 mb-1">🟢 VALID (Complete)</strong>
+                A product type is valid when it has &gt; 0 attached components, at least one schedule, and <strong>every</strong> schedule is fully associated with its variation of component lead times.
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowValidityModal(false)}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                Got It
+              </button>
+            </div>
           </div>
         </div>
       )}

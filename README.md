@@ -10,7 +10,7 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 - **Component Lead Time Tracking:** Tracks components relative to their milestones and warns of late ordering based on lead times ($Targeted\ Deadline - Lead\ Time = Latest\ Order\ Date$).
 - **Local SQLite Storage:** Self-contained data storage requiring zero cloud APIs or web servers, securing company data locally.
 - **Interactive Gantt & Dashboard Visualizations:** A fully functional dashboard interface containing customized, responsive Gantt Chart visual charts.
-- **Product Type & Schedule Master Configuration (Phase 4):** A robust registry enabling users to manage product types, build custom milestone dependency graphs, attach raw parts, and establish custom order lead times.
+- **Product Type & Schedule Master Configuration (Phase 4):** A robust registry enabling users to manage product types, build custom milestone dependency graphs, attach raw parts, and establish custom order lead times. Product Type Registry includes validity guidance, searchable component attachment, relationship/timeline/record views, and per-schedule completion feedback.
 - **Interactive Milestone Tree Diagram (Phase 4):** Visualizes the recursive hierarchical anchors and offset relations of custom milestones starting from root boundary boundaries.
 - **Phase 4 CSV Import & Export Enablers:** Dedicated flat CSV parsers/stringifiers allowing instant local backups or communication transfers of Product Types and Schedule Configurations.
 - **Robust CSV Bulk Importers (Phase 5):** High-quality bulk uploads with visual verification spreadsheets highlighting validation errors and key constraints (such as clashing Tag Nos).
@@ -43,8 +43,10 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 │           ├── csv.js       # RFC 4180 CSV parsing & serialization utilities (Phase 4)
 │           └── scheduler.js # Core calculation engine (milestone & component rules)
 ├── index.html              # Frontend DOM mount
-├── plan.md                 # 7-Phase Build plan and architectural specifications
-├── changelog.md            # Detailed file change tracking log
+├── docs_logs/              # Internal plans, test reports, changelog, and project records
+│   ├── plan.md             # 7-Phase Build plan and architectural specifications
+│   ├── changelog.md        # Detailed file change tracking log
+│   └── Internal Test 1.md  # Incremental internal review feedback
 ├── tailwind.config.js      # CSS configuration file
 ├── vite.config.js          # Vite build options
 └── package.json            # Dependencies and npm execution scripts

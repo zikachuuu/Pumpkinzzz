@@ -42,7 +42,6 @@ export function parseCSV(text) {
   }
   return lines;
 }
-
 /**
  * Standard stringifier to turn headers and rows into CSV content.
  * 
@@ -144,4 +143,40 @@ export function stringifySchedulesAndMilestones(productType, schedules, mileston
   }
 
   return stringifyCSV(headers, rows);
+}
+
+/**
+ * Generates a blank CSV template for Product Types import.
+ */
+export function stringifyProductTypesTemplate() {
+  const headers = ['Product Type Name', 'Attached Components'];
+  const sampleRows = [
+    ['Water Chiller', 'Compressor;Condenser;Evaporator;Expansion Valve'],
+    ['Air Chiller', 'Compressor;Fan Motor;Condenser Coil']
+  ];
+  return stringifyCSV(headers, sampleRows);
+}
+/**
+ * Generates a blank CSV template for Schedules and Milestones import.
+ */
+export function stringifySchedulesTemplate() {
+  const headers = [
+    'Schedule Name',
+    'Milestone Name',
+    'Anchor Milestone Name',
+    'Offset (Days)',
+    'Milestone Remark',
+    'Component Name',
+    'Component Anchor Milestone',
+    'Lead Time (Days)'
+  ];
+  const sampleRows = [
+    ['Normal', 'Contract Signed', '', '', 'Project starts', '', '', ''],
+    ['Normal', 'ROS', '', '', 'Required On Site delivery', '', '', ''],
+    ['Normal', 'Production Start', 'Contract Signed', '15', 'Production begins', '', '', ''],
+    ['Normal', 'Production End', 'Production Start', '30', 'Production complete', '', '', ''],
+    ['Normal', '', '', '', '', 'Compressor', 'Production Start', '10'],
+    ['Normal', '', '', '', '', 'Condenser', 'Production End', '5']
+  ];
+  return stringifyCSV(headers, sampleRows);
 }

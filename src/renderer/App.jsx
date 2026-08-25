@@ -29,7 +29,7 @@ export default function App() {
               activeTab === 'productTypes' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
             }`}
           >
-            Product Types
+            Product Type Registry
           </button>
           <button
             onClick={() => setActiveTab('registry')}

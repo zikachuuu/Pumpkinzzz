@@ -2,6 +2,16 @@
 
 This changelog documents the development history, structural designs, and code files added/modified for the Pumpkinzzz project schedule tracking application.
 
+## [1.0.0-dev] - 2026-08-26
+
+### Changed
+- **`src/renderer/components/ProductTypeManager.jsx` (Internal Test 1 - Section 1.1 and 1.2):** Added the Product Type CSV template flow, three schedule views (relationship tree, chronological timelines, and master records), icon actions, friendly before/after milestone wording, searchable product-type/component attachment, and per-schedule validity feedback.
+- **`README.md`:** Updated the project structure and Product Type Registry feature description for the `docs_logs/` document layout and Section 1 refinements.
+
+### Verification
+- `conda run -n pumpkinzzz-env npm run build:frontend` completed successfully.
+- Editor diagnostics reported no errors for `ProductTypeManager.jsx`.
+
 ---
 
 ## [1.0.0-dev] - 2026-08-24
@@ -32,9 +42,22 @@ This changelog documents the development history, structural designs, and code f
 
 - **`package.json`**: Configured `electron-builder` targets (`dmg` for macOS, `nsis` for Windows) and production build scripts to compile the standalone installer into the `release/` directory.
 
+- **`src/renderer/components/ProductTypeManager.jsx` (Internal Test 1 - Section 1 Fixes)**:
+  - Renamed title to "Product Type Registry" and added Validity Status Guide modal and inquiry button explaining `valid`, `sub-valid`, and `invalid` states (1.1.2).
+  - Explicitly notified users that new product types start as `invalid` and require configuration (1.1.3).
+  - Displayed duplicate name warnings inside the modal popup with friendly wording "Product type already exists" (1.1.4).
+  - Added "Get CSV Template" for Product Types and "Get Schedule Template" for Schedules (1.1.5, 1.2.9).
+  - Standardized Milestone Master Records edit and delete buttons to use icons (1.2.1).
+  - Made Milestone Relationship Tree Diagram scrollable horizontally (`overflow-x-auto min-w-[700px]`, 1.2.2).
+  - Encapsulated negative offset numbers into user-friendly 3-field milestone modal (`days`, `direction` before/after, anchor, 1.2.4).
+  - Displayed friendly relationship text (e.g. `28 days after Production Start`) in Tree Diagram and Master Records table (1.2.5).
+  - Added attached components search filter textbox (1.2.6).
+  - Added individual "Save Lead Times for this Schedule" button per schedule card (1.2.7).
+  - Added schedule validity status badges with hover tooltips (1.2.8).
+
 ---
 
-## Current Status (Stage 7 of 7) ── [COMPLETED]
+## Current Status (Stage 7 of 7) ── [COMPLETED + SECTION 1 INTERNAL TEST REFINEMENTS]
 - **Phase 1: Environment Setup** ── **[COMPLETED]** (Conda environment built, Node installed, Electron + React structure verified and compiling).
 - **Phase 2: Database Schema & IPC Layer** ── **[COMPLETED]** (Schema designed and coded, database automatically instantiates local tables on startup, IPC handlers defined).
 - **Phase 3 & Core Logic** ── **[COMPLETED]** (Propagating schedule and component logic written, verified and modularized).

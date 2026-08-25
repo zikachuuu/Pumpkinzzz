@@ -86,3 +86,7 @@ TBD…
 5.1.1 Add a new settings page in the bottom of the left menu bar.
 
 5.1.2 Now this page only has toggle date format (3.1.2), but we can add more in the future
+
+## Incremental Review Status
+
+Section 1 (Product Types Interface), including 1.1 and 1.2, was implemented and rechecked on 2026-08-26. Frontend production build passed. Sections 2 and later remain pending for the next review cycle.
