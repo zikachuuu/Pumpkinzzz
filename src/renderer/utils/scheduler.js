@@ -113,7 +113,9 @@ export function calculateMilestoneDeadlines(project, milestones) {
  * @param {Array} components - Complete list of components
  * @returns {Array} List of components with calculated latest_order_date, days_until_need, and urgency status
  */
-export function calculateComponentDeadlines(milestoneDeadlines, componentSchedules, components) {
+export function calculateComponentDeadlines(milestoneDeadlines, componentSchedules, components, urgencySettings = {}) {
+  const urgentDays = urgencySettings.componentUrgentDays ?? 30;
+  const veryUrgentDays = urgencySettings.componentVeryUrgentDays ?? 7;
   const today = new Date().toISOString().split('T')[0];
 
   function getDaysBetween(date1, date2) {
@@ -144,9 +146,9 @@ export function calculateComponentDeadlines(milestoneDeadlines, componentSchedul
 
       if (daysUntilNeed < 0) {
         urgency = 'Overdue';
-      } else if (daysUntilNeed <= 7) {
-        urgency = 'Extremely Urgent';
-      } else if (daysUntilNeed <= 30) {
+      } else if (daysUntilNeed <= veryUrgentDays) {
+        urgency = 'Very Urgent';
+      } else if (daysUntilNeed <= urgentDays) {
         urgency = 'Urgent';
       } else {
         urgency = 'On Track';

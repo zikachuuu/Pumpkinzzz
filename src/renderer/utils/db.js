@@ -231,13 +231,13 @@ export async function addProject(p) {
     INSERT INTO projects (
       tag_no, description, product_type_id, schedule_id, customer, 
       contract_no, sales_ref, pm_owner, engineer_owner, procurement_owner, 
-      production_owner, fat_owner, contract_signed_date, ros_date, notes, actual_dates
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      production_owner, fat_owner, contract_signed_date, ros_date, notes, actual_dates, actual_received_dates
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   return api.dbRun(sql, [
     p.tag_no, p.description || '', p.product_type_id, p.schedule_id, p.customer,
     p.contract_no, p.sales_ref, p.pm_owner, p.engineer_owner, p.procurement_owner,
-    p.production_owner, p.fat_owner, p.contract_signed_date, p.ros_date, p.notes || '', p.actual_dates || '{}'
+    p.production_owner, p.fat_owner, p.contract_signed_date, p.ros_date, p.notes || '', p.actual_dates || '{}', p.actual_received_dates || '{}'
   ]);
 }
 
@@ -266,5 +266,9 @@ export async function deleteProject(tagNo) {
 export async function updateProjectActualDates(tagNo, actualDatesJSON) {
   const sql = `UPDATE projects SET actual_dates = ? WHERE tag_no = ?`;
   return api.dbRun(sql, [actualDatesJSON, tagNo]);
+}
+
+export async function updateProjectActualReceivedDates(tagNo, receivedDatesJSON) {
+  return api.dbRun(`UPDATE projects SET actual_received_dates = ? WHERE tag_no = ?`, [receivedDatesJSON, tagNo]);
 }
 

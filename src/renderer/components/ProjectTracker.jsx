@@ -7,7 +7,7 @@ import {
 import * as db from '../utils/db';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../utils/scheduler';
 import { stringifyCSV } from '../utils/csv';
-import { formatDate } from '../utils/date';
+import { formatDate, getUrgencySettings } from '../utils/date';
 
 export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   // Global reference states
@@ -31,6 +31,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   const [milestoneSort, setMilestoneSort] = useState({ key: 'target', direction: 'asc' });
   const [componentSort, setComponentSort] = useState({ key: 'latest', direction: 'asc' });
   const [editingActual, setEditingActual] = useState(null);
+  const urgencySettings = getUrgencySettings();
 
   // Edit Modal State
   const [editingProject, setEditingProject] = useState(null);
@@ -144,6 +145,31 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
     } catch (err) {
       triggerAlert('error', `Failed to update actual date: ${err.message}`);
     }
+  };
+
+  const handleActualReceivedUpdate = async (tagNo, componentId, dateStr) => {
+    try {
+      const project = projects.find(item => item.tag_no === tagNo);
+      if (!project) return;
+      const receivedDates = typeof project.actual_received_dates === 'string'
+        ? JSON.parse(project.actual_received_dates || '{}')
+        : (project.actual_received_dates || {});
+      if (dateStr) receivedDates[componentId] = dateStr;
+      else delete receivedDates[componentId];
+      await db.updateProjectActualReceivedDates(tagNo, JSON.stringify(receivedDates));
+      setProjects(await db.getProjects());
+    } catch (err) {
+      triggerAlert('error', `Failed to update received date: ${err.message}`);
+    }
+  };
+
+  const getMilestoneStatus = (target, actual, today) => {
+    if (actual) return actual <= target ? 'Completed before deadline' : 'Completed after deadline';
+    if (!target || target < today) return 'Overdue';
+    const daysRemaining = Math.ceil((new Date(target) - new Date(today)) / (1000 * 60 * 60 * 24));
+    if (daysRemaining <= urgencySettings.milestoneVeryUrgentDays) return 'Very Urgent';
+    if (daysRemaining <= urgencySettings.milestoneUrgentDays) return 'Urgent';
+    return 'On Track';
   };
 
   const sortRows = (rows, sortState) => [...rows].sort((first, second) => {
@@ -515,6 +541,9 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                               const actuals = typeof p.actual_dates === 'string'
                                 ? JSON.parse(p.actual_dates || '{}')
                                 : (p.actual_dates || {});
+                              const receivedDates = typeof p.actual_received_dates === 'string'
+                                ? JSON.parse(p.actual_received_dates || '{}')
+                                : (p.actual_received_dates || {});
                               const today = new Date().toISOString().split('T')[0];
 
                               const sortedMilestones = sortRows(milestones.map(m => ({
@@ -530,24 +559,21 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                                 const isContractSigned = m.name.toLowerCase() === 'contract signed';
                                 
                                 // Countdown evaluation
-                                let statusText = 'On Track';
+                                let statusText = getMilestoneStatus(target, actual, today);
                                 let statusColor = 'text-teal-600 bg-teal-50 border-teal-200';
 
-                                if (isContractSigned || actual) {
+                                if (isContractSigned) {
                                   statusText = 'Completed';
                                   statusColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-                                } else if (target && target < today) {
+                                } else if (statusText === 'Completed before deadline' || statusText === 'Completed after deadline') {
+                                  statusColor = statusText === 'Completed before deadline' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-orange-600 bg-orange-50 border-orange-200';
+                                } else if (statusText === 'Overdue') {
                                   statusText = 'Overdue';
                                   statusColor = 'text-red-600 bg-red-50 border-red-200';
-                                } else if (target) {
-                                  const diffDays = Math.ceil((new Date(target) - new Date(today)) / (1000 * 60 * 60 * 24));
-                                  if (diffDays <= 7) {
-                                    statusText = `Due in ${diffDays}d (Urgent)`;
-                                    statusColor = 'text-amber-600 bg-amber-50 border-amber-200';
-                                  } else {
-                                    statusText = `Due in ${diffDays} days`;
-                                    statusColor = 'text-gray-600 bg-gray-50 border-gray-200';
-                                  }
+                                } else if (statusText === 'Very Urgent') {
+                                  statusColor = 'text-orange-600 bg-orange-50 border-orange-200';
+                                } else if (statusText === 'Urgent') {
+                                  statusColor = 'text-amber-600 bg-amber-50 border-amber-200';
                                 }
 
                                 const anchor = milestones.find(a => a.id === m.anchor_id);
@@ -617,6 +643,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                               <th className="px-4 py-3 text-left">Anchor Milestone</th>
                               <th className="px-4 py-3 text-left">Lead Time (Days)</th>
                               <th className="px-4 py-3 text-left">Latest Order Date</th>
+                              <th className="px-4 py-3 text-left">Actual Received Date</th>
                               <th className="px-4 py-3 text-left">Urgency Status</th>
                             </tr>
                           </thead>
@@ -625,12 +652,12 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                               const milestones = allMilestones[p.schedule_id] || [];
                               const deadlines = calculateMilestoneDeadlines(p, milestones);
                               const compScheds = allComponentSchedules[p.schedule_id] || [];
-                              const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents);
+                              const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents, urgencySettings);
 
                               if (computedComps.length === 0) {
                                 return (
                                   <tr>
-                                    <td colSpan="5" className="px-4 py-6 text-center text-gray-400">
+                                    <td colSpan="6" className="px-4 py-6 text-center text-gray-400">
                                       No component schedule configurations found for this schedule.
                                     </td>
                                   </tr>
@@ -639,7 +666,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
 
                               const urgencyColors = {
                                 'Overdue': 'text-red-700 bg-red-100 border-red-200',
-                                'Extremely Urgent': 'text-orange-700 bg-orange-100 border-orange-200',
+                                'Very Urgent': 'text-orange-700 bg-orange-100 border-orange-200',
                                 'Urgent': 'text-amber-700 bg-amber-100 border-amber-200',
                                 'On Track': 'text-emerald-700 bg-emerald-100 border-emerald-200',
                                 'Pending': 'text-gray-600 bg-gray-100 border-gray-200'
@@ -648,15 +675,22 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                               const sortedComponents = sortRows(computedComps.map(cc => ({ ...cc, anchor: milestones.find(m => m.id === cc.anchor_milestone_id)?.name, latest: cc.latest_order_date })), componentSort);
                               return sortedComponents.map(cc => {
                                 const anchorM = milestones.find(m => m.id === cc.anchor_milestone_id);
+                                const receivedDate = receivedDates[cc.component_id] || '';
+                                const receivedStatus = receivedDate
+                                  ? receivedDate <= (anchorM ? deadlines[anchorM.id] : '')
+                                    ? `Received before ${anchorM ? anchorM.name : 'anchor'}`
+                                    : `Received after ${anchorM ? anchorM.name : 'anchor'}`
+                                  : cc.urgency;
                                 return (
                                   <tr key={cc.component_id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 font-semibold text-gray-900">{cc.name}</td>
                                     <td className="px-4 py-3 text-gray-500">{anchorM ? anchorM.name : 'ROS'}</td>
                                     <td className="px-4 py-3 font-medium">{cc.lead_time} days</td>
                                     <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(cc.latest_order_date, dateFormat)}</td>
+                                    <td className="px-4 py-3"><input type="date" value={receivedDate} onChange={event => handleActualReceivedUpdate(p.tag_no, cc.component_id, event.target.value)} className="px-2 py-1 border border-gray-300 rounded text-xs" /></td>
                                     <td className="px-4 py-3">
-                                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${urgencyColors[cc.urgency] || 'bg-gray-100 text-gray-800'}`}>
-                                        {cc.urgency.toUpperCase()} {cc.days_until_need !== null ? `(${cc.days_until_need}d left)` : ''}
+                                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${urgencyColors[cc.urgency] || (receivedDate ? 'text-emerald-700 bg-emerald-100 border-emerald-200' : 'bg-gray-100 text-gray-800')}`}>
+                                        {receivedStatus.toUpperCase()} {cc.days_until_need !== null && !receivedDate ? `(${cc.days_until_need}d left)` : ''}
                                       </span>
                                     </td>
                                   </tr>

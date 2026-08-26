@@ -10,7 +10,9 @@ import {
   stringifyProductTypes, 
   stringifySchedulesAndMilestones,
   stringifyProductTypesTemplate,
-  stringifySchedulesTemplate
+  stringifySchedulesTemplate,
+  stringifyMilestonesOnly,
+  stringifyFullProductTypeBackup
 } from '../utils/csv';
 
 export default function ProductTypeManager() {
@@ -663,7 +665,7 @@ export default function ProductTypeManager() {
     if (!selectedPt) return;
 
     try {
-      const sList = await db.getSchedules(selectedPt.id);
+      const sList = (await db.getSchedules(selectedPt.id)).filter(schedule => scheduleValidity[schedule.id]?.isValid);
       const mData = {};
       const csData = {};
 
@@ -685,6 +687,44 @@ export default function ProductTypeManager() {
       if (!saveRes.canceled && saveRes.filePath) {
         await window.electronAPI.writeFileContent(saveRes.filePath, csvContent);
         triggerAlert('success', `Schedules exported successfully for ${selectedPt.name}!`);
+      }
+    } catch (err) {
+      triggerAlert('error', `Export failed: ${err.message}`);
+    }
+  };
+
+  const handleExportMilestonesOnly = async () => {
+    if (!selectedPt) return;
+    try {
+      const scheduleList = await db.getSchedules(selectedPt.id);
+      const milestoneMap = {};
+      for (const schedule of scheduleList) milestoneMap[schedule.id] = await db.getMilestones(schedule.id);
+      const saveRes = await window.electronAPI.showSaveDialog({ title: `Export Milestones - ${selectedPt.name}`, defaultPath: `${selectedPt.name.toLowerCase().replace(/\s+/g, '_')}_milestones.csv`, filters: [{ name: 'CSV Files', extensions: ['csv'] }] });
+      if (!saveRes.canceled && saveRes.filePath) {
+        await window.electronAPI.writeFileContent(saveRes.filePath, stringifyMilestonesOnly(selectedPt, scheduleList, milestoneMap));
+        triggerAlert('success', `Milestones exported successfully for ${selectedPt.name}!`);
+      }
+    } catch (err) {
+      triggerAlert('error', `Export failed: ${err.message}`);
+    }
+  };
+
+  const handleExportFullBackup = async () => {
+    try {
+      const rows = [];
+      for (const productType of await db.getProductTypes()) {
+        const components = await db.getAttachedComponents(productType.id);
+        for (const schedule of await db.getSchedules(productType.id)) {
+          const scheduleMilestones = await db.getMilestones(schedule.id);
+          const componentSchedules = await db.getComponentSchedules(schedule.id);
+          scheduleMilestones.forEach(milestone => rows.push([productType.name, components.map(component => component.name).join(';'), schedule.name, milestone.name, scheduleMilestones.find(anchor => anchor.id === milestone.anchor_id)?.name || '', milestone.offset, milestone.remark || '', '', '']));
+          componentSchedules.forEach(config => rows.push([productType.name, components.map(component => component.name).join(';'), schedule.name, '', '', '', '', scheduleMilestones.find(milestone => milestone.id === config.anchor_milestone_id)?.name || '', config.lead_time]));
+        }
+      }
+      const saveRes = await window.electronAPI.showSaveDialog({ title: 'Export Full Product Type Backup', defaultPath: 'product_types_full_backup.csv', filters: [{ name: 'CSV Files', extensions: ['csv'] }] });
+      if (!saveRes.canceled && saveRes.filePath) {
+        await window.electronAPI.writeFileContent(saveRes.filePath, stringifyFullProductTypeBackup(rows));
+        triggerAlert('success', 'Full Product Type backup exported successfully!');
       }
     } catch (err) {
       triggerAlert('error', `Export failed: ${err.message}`);
@@ -1098,6 +1138,13 @@ export default function ProductTypeManager() {
               <span>Export Schedules CSV</span>
             </button>
             <button
+              onClick={handleExportMilestonesOnly}
+              className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
+            >
+              <Download className="w-3.5 h-3.5 text-gray-500" />
+              <span>Export Milestones CSV</span>
+            </button>
+            <button
               onClick={handleImportSchedules}
               className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
             >
@@ -1309,7 +1356,7 @@ export default function ProductTypeManager() {
                                   <span className="absolute w-2.5 h-2.5 bg-indigo-600 rounded-full -left-[7px] top-1.5" />
                                   <p className="font-semibold text-sm text-gray-900">{item.name}</p>
                                   <p className="text-xs text-gray-500">
-                                    {item.relativeDays === 0 ? 'Root date' : `${Math.abs(item.relativeDays)} days ${item.relativeDays < 0 ? 'before' : 'after'} ${rootNode.name}`}
+                                    {item.anchor_id ? `Days to ${milestones.find(anchor => anchor.id === item.anchor_id)?.name || 'anchored milestone'}: ${Math.abs(item.offset)} ${item.offset < 0 ? 'before' : 'after'}` : 'Root boundary'}
                                   </p>
                                 </div>
                               ))}
@@ -1786,23 +1833,30 @@ export default function ProductTypeManager() {
 
   return (
     <div className="space-y-6">
-      {/* Top action cards & CSV triggers */}
+      {/* Product type registration */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex items-center space-x-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Product Type Registry</h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Create, view, edit, and configure structural requirements for Chillers, Cooling Systems, and more.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Register new product types</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Create, view, edit, and configure structural requirements for Chillers, Cooling Systems, and more.
+          </p>
+        </div>
+        <div>
           <button
-            onClick={() => setShowValidityModal(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-bold transition shadow-sm"
-            title="Understand Product Type Validity Statuses"
+            onClick={() => setShowAddPtModal(true)}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm transition"
           >
-            <Info className="w-3.5 h-3.5" />
-            <span>? Status Guide</span>
+            <Plus className="w-4 h-4" />
+            <span>New Product Type</span>
           </button>
+        </div>
+      </div>
+
+      {/* Bulk registration */}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gray-50 rounded-lg border border-gray-200 p-4">
+        <div>
+          <h3 className="text-sm font-bold text-gray-800">Bulk Registration</h3>
+          <p className="text-xs text-gray-500 mt-1">Download a template, import product types, or export the current component lists.</p>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -1827,11 +1881,11 @@ export default function ProductTypeManager() {
             <span>Import CSV</span>
           </button>
           <button
-            onClick={() => setShowAddPtModal(true)}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm transition"
+            onClick={handleExportFullBackup}
+            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
           >
-            <Plus className="w-4 h-4" />
-            <span>New Product Type</span>
+            <Download className="w-3.5 h-3.5 text-gray-500" />
+            <span>Full Backup CSV</span>
           </button>
         </div>
       </div>
@@ -1932,8 +1986,13 @@ export default function ProductTypeManager() {
                     </h3>
                   )}
                   
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusColors[pt.status]}`}>
-                    {pt.status.toUpperCase()}
+                  <span className="inline-flex items-center gap-1">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusColors[pt.status]}`}>
+                      {pt.status.toUpperCase()}
+                    </span>
+                    <button type="button" onClick={() => setShowValidityModal(true)} className="p-1 text-gray-400 hover:text-indigo-600" title={`Why is this product type ${pt.status}?`}>
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
                   </span>
                 </div>
 

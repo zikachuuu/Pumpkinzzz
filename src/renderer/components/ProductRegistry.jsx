@@ -687,9 +687,9 @@ export default function ProductRegistry({ onRedirectToTracker }) {
       {/* Registry Actions Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Product Registration Dashboard</h2>
+          <h2 className="text-xl font-bold text-gray-900">Register new projects here</h2>
           <p className="text-xs text-gray-500 mt-1">
-            Register new projects manually using the form below or import multiple entries via CSV bulk upload.
+            Register projects manually or import multiple entries via CSV. Select a valid or sub-valid product type and a schedule with complete lead-time configuration.
           </p>
         </div>
         <div className="flex items-center space-x-3">

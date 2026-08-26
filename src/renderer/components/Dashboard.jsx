@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, BarChart3, Calendar, Check, Clock, Layers, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, BarChart3, Calendar, Clock, Layers, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import * as db from '../utils/db';
 import { calculateMilestoneDeadlines } from '../utils/scheduler';
 import { formatDate } from '../utils/date';
@@ -62,6 +62,27 @@ export default function Dashboard({ dateFormat }) {
     .filter(milestone => milestone.target)
     .sort((first, second) => first.target.localeCompare(second.target));
 
+  const getProjectStatusCounts = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const actuals = selectedProject && typeof selectedProject.actual_dates === 'string' ? JSON.parse(selectedProject.actual_dates || '{}') : (selectedProject?.actual_dates || {});
+    return datedMilestones.reduce((counts, milestone) => {
+      const actual = actuals[milestone.id];
+      if (actual) counts[actual <= milestone.target ? 'completedBefore' : 'completedAfter']++;
+      else if (milestone.target < today) counts.overdue++;
+      else {
+        const days = daysBetween(today, milestone.target);
+        counts[days <= 7 ? 'veryUrgent' : days <= 30 ? 'urgent' : 'onTrack']++;
+      }
+      return counts;
+    }, { completedBefore: 0, completedAfter: 0, onTrack: 0, urgent: 0, veryUrgent: 0, overdue: 0 });
+  };
+
+  const dashboardCopy = {
+    product: ['Project Dashboard', 'Review the schedule and current progress of a selected project.'],
+    productType: ['Product Type Dashboard', 'Review the consolidated status of the projects under a selected product type.'],
+    components: ['Components Dashboard', 'Review the demand of a selected component.']
+  };
+
   const addComparisonRow = () => setComparisonRows(rows => [...rows, { start: '', end: '' }]);
   const updateComparisonRow = (index, field, value) => setComparisonRows(rows => rows.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row));
   const removeComparisonRow = index => setComparisonRows(rows => rows.filter((_, rowIndex) => rowIndex !== index));
@@ -72,13 +93,13 @@ export default function Dashboard({ dateFormat }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Operations Dashboard</h2>
-          <p className="text-xs text-gray-500 mt-1">Review one product lifecycle, product type health, or component demand.</p>
+          <h2 className="text-xl font-bold text-gray-900">{dashboardCopy[activeTab][0]}</h2>
+          <p className="text-xs text-gray-500 mt-1">{dashboardCopy[activeTab][1]}</p>
         </div>
         <div className="flex gap-2">
           {['product', 'productType', 'components'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-2 rounded-lg text-xs font-bold ${activeTab === tab ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {tab === 'product' ? 'Product' : tab === 'productType' ? 'Product Type' : 'Components'}
+              {tab === 'product' ? 'Projects' : tab === 'productType' ? 'Product Type' : 'Components'}
             </button>
           ))}
         </div>
@@ -89,7 +110,7 @@ export default function Dashboard({ dateFormat }) {
       {activeTab === 'product' && (
         <>
           <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-            <label className="block text-xs font-bold text-gray-500 uppercase">Select product</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Select project</label>
             <select value={selectedTag} onChange={event => { setSelectedTag(event.target.value); setComparisonRows([]); }} className="mt-2 w-full max-w-xl rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
               <option value="">Choose a registered product</option>
               {projects.map(project => <option key={project.tag_no} value={project.tag_no}>{project.tag_no} - {project.customer}</option>)}
@@ -98,17 +119,20 @@ export default function Dashboard({ dateFormat }) {
 
           {selectedProject ? <>
             <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div><h3 className="text-lg font-bold text-gray-900">{selectedProject.tag_no}</h3><p className="text-sm text-gray-500">{selectedProject.product_type_name} / {selectedProject.schedule_name} / {selectedProject.customer}</p></div>
-                <button onClick={() => setShowDetails(value => !value)} className="px-3 py-2 rounded-lg bg-gray-100 text-xs font-bold text-gray-700 hover:bg-gray-200">{showDetails ? 'Hide details' : 'Show details'}</button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                {[['Tag No', selectedProject.tag_no], ['Customer', selectedProject.customer], ['Product', selectedProject.product_type_name], ['Schedule', selectedProject.schedule_name], ['Contract Signed', formatDate(selectedProject.contract_signed_date, dateFormat)], ['ROS Deadline', formatDate(selectedProject.ros_date, dateFormat)]].map(([label, value]) => <div key={label}><span className="block text-[10px] uppercase font-bold text-gray-400">{label}</span><span className={`block mt-1 font-semibold text-gray-800 ${label === 'Tag No' ? 'text-lg' : 'text-sm'}`}>{value || '-'}</span></div>)}
               </div>
+              <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap gap-2 text-[10px] font-bold">
+                {Object.entries(getProjectStatusCounts()).map(([key, value]) => <span key={key} className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{key.replace(/([A-Z])/g, ' $1')}: {value}</span>)}
+              </div>
+              <button onClick={() => setShowDetails(value => !value)} className="mt-4 w-full flex justify-center text-gray-500 hover:text-indigo-600" title={showDetails ? 'Collapse project details' : 'Expand project details'}>{showDetails ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</button>
               {showDetails && <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-gray-100 text-xs">{[['Contract No.', selectedProject.contract_no], ['Sales Ref.', selectedProject.sales_ref], ['PM Owner', selectedProject.pm_owner], ['Engineer', selectedProject.engineer_owner], ['Procurement', selectedProject.procurement_owner], ['Production', selectedProject.production_owner], ['FAT Owner', selectedProject.fat_owner], ['Notes', selectedProject.notes]].map(([label, value]) => <div key={label}><span className="block text-[10px] uppercase font-bold text-gray-400">{label}</span><span className="block mt-1 font-semibold text-gray-700">{value || '-'}</span></div>)}</div>}
             </section>
 
             <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-5"><Calendar className="w-5 h-5 text-indigo-600" /><h3 className="font-bold text-gray-900">Milestone timeline</h3></div>
               <div className="border-l-2 border-indigo-200 ml-3 space-y-5">
-                {datedMilestones.map((milestone, index) => { const previous = datedMilestones[index - 1]; return <div key={milestone.id} className="relative pl-6"><span className="absolute w-3 h-3 bg-indigo-600 rounded-full -left-[7px] top-1" /><div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-sm text-gray-900">{milestone.name}</p><p className="text-xs text-gray-500">{previous ? `${daysBetween(previous.target, milestone.target)} days since ${previous.name}` : 'Root date'}</p></div><span className="text-xs font-bold text-indigo-700">{formatDate(milestone.target, dateFormat)}</span></div></div>; })}
+                {datedMilestones.map((milestone, index) => { const previous = datedMilestones[index - 1]; const actuals = typeof selectedProject.actual_dates === 'string' ? JSON.parse(selectedProject.actual_dates || '{}') : (selectedProject.actual_dates || {}); const actual = actuals[milestone.id]; const status = actual ? (actual <= milestone.target ? 'Completed before deadline' : 'Completed after deadline') : milestone.target < new Date().toISOString().split('T')[0] ? 'Overdue' : 'On track'; return <div key={milestone.id} className="relative pl-6"><span className="absolute w-3 h-3 bg-indigo-600 rounded-full -left-[7px] top-1" /><div className="grid grid-cols-1 md:grid-cols-3 gap-2"><div><p className="font-semibold text-sm text-gray-900">{milestone.name}</p>{previous && <p className="text-xs text-gray-500">{daysBetween(previous.target, milestone.target)} days since {previous.name}</p>}</div><span className="text-xs font-bold text-indigo-700">Deadline: {formatDate(milestone.target, dateFormat)}</span><span className="text-xs text-gray-600">Actual: {formatDate(actual, dateFormat)} / {status}</span></div></div>; })}
               </div>
             </section>
 

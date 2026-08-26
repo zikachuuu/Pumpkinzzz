@@ -180,3 +180,25 @@ export function stringifySchedulesTemplate() {
   ];
   return stringifyCSV(headers, sampleRows);
 }
+
+export function stringifyMilestonesOnly(productType, schedules, milestonesMap) {
+  const headers = ['Product Type Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark'];
+  const rows = [];
+  schedules.forEach(schedule => {
+    const milestones = milestonesMap[schedule.id] || [];
+    milestones.forEach(milestone => rows.push([
+      productType.name,
+      schedule.name,
+      milestone.name,
+      milestones.find(anchor => anchor.id === milestone.anchor_id)?.name || '',
+      milestone.offset,
+      milestone.remark || ''
+    ]));
+  });
+  return stringifyCSV(headers, rows);
+}
+
+export function stringifyFullProductTypeBackup(productRows) {
+  const headers = ['Product Type Name', 'Component Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 'Component Anchor Milestone', 'Lead Time (Days)'];
+  return stringifyCSV(headers, productRows);
+}

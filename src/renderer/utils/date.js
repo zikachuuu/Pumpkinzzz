@@ -19,3 +19,22 @@ export function getStoredDateFormat() {
 export function setStoredDateFormat(format) {
   localStorage.setItem('pumpkinzzz-date-format', format);
 }
+
+export const DEFAULT_URGENCY_SETTINGS = {
+  milestoneUrgentDays: 30,
+  milestoneVeryUrgentDays: 7,
+  componentUrgentDays: 30,
+  componentVeryUrgentDays: 7
+};
+
+export function getUrgencySettings() {
+  try {
+    return { ...DEFAULT_URGENCY_SETTINGS, ...JSON.parse(localStorage.getItem('pumpkinzzz-urgency-settings') || '{}') };
+  } catch {
+    return DEFAULT_URGENCY_SETTINGS;
+  }
+}
+
+export function setUrgencySettings(settings) {
+  localStorage.setItem('pumpkinzzz-urgency-settings', JSON.stringify(settings));
+}

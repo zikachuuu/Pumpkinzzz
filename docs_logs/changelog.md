@@ -2,6 +2,24 @@
 
 This changelog documents the development history, structural designs, and code files added/modified for the Pumpkinzzz project schedule tracking application.
 
+## [1.0.0-dev] - 2026-08-26 (Internal Test 2)
+
+### Changed
+- **Dashboard:** Added dynamic tab titles/subtitles, renamed the Projects tab, redesigned the selected-project banner and timeline, added milestone urgency summaries, and added milestone comparison bars with chronological validation.
+- **Project Tracker:** Added configurable granular milestone statuses, persisted actual component received dates with before/after anchor status, and applied separate component urgency thresholds.
+- **Settings:** Added separate Urgent and Very Urgent threshold inputs for milestones and components, persisted locally with the existing date preference.
+- **Product Type Registry:** Changed the landing slogan, moved CSV actions into Bulk Registration, added contextual status help, anchored timing text, valid-schedule filtering for combined exports, milestone-only export, and full product-type backup export.
+- **Product Registry:** Updated the landing slogan and guidance about valid or sub-valid schedules.
+- **Database:** Added a backward-compatible `actual_received_dates` project column migration.
+
+### Verification
+- `conda run -n pumpkinzzz-env npm run build:frontend` passed.
+- `conda run -n pumpkinzzz-env node scripts/check-phases.js` passed.
+- Editor diagnostics and `git diff --check` passed.
+
+### Follow-up
+- Product Type destructive overwrite imports and pre-flight import confirmation are intentionally left for a dedicated acceptance pass because they can delete existing schedules.
+
 ## [1.0.0-dev] - 2026-08-26 (Sections 2-5)
 
 ### Changed

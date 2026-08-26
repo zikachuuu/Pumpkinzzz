@@ -96,9 +96,15 @@ function initDb() {
           ros_date TEXT NOT NULL,
           notes TEXT,
           actual_dates TEXT,
+          actual_received_dates TEXT DEFAULT '{}',
           FOREIGN KEY(product_type_id) REFERENCES product_types(id),
           FOREIGN KEY(schedule_id) REFERENCES schedules(id)
         );`);
+        db.run(`ALTER TABLE projects ADD COLUMN actual_received_dates TEXT DEFAULT '{}'`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.error('Error adding actual received dates column:', err.message);
+          }
+        });
 
         console.log('Database tables initialized successfully.');
       });

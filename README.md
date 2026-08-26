@@ -12,6 +12,8 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 - **Interactive Operations Dashboard:** Separate Product, Product Type, and Components views. Product view supports expandable project information, a vertical milestone timeline with durations, and user-defined milestone comparison bars.
 - **Project Tracker:** Expanded project details, confirmed actual-date display/editing, sortable milestone and component tables, and consistent configurable date formatting.
 - **Settings:** Local date display preference for ISO (`yyyy-mm-dd`) or day-first (`dd-mm-yyyy`) output.
+- **Urgency Configuration:** Separate milestone and component thresholds for Urgent and Very Urgent statuses, defaulting to 30 and 7 days.
+- **Component Receipt Tracking:** Project Tracker stores actual received dates per component and reports whether receipt occurred before or after its anchor deadline.
 - **Product Type & Schedule Master Configuration (Phase 4):** A robust registry enabling users to manage product types, build custom milestone dependency graphs, attach raw parts, and establish custom order lead times. Product Type Registry includes validity guidance, searchable component attachment, relationship/timeline/record views, and per-schedule completion feedback.
 - **Interactive Milestone Tree Diagram (Phase 4):** Visualizes the recursive hierarchical anchors and offset relations of custom milestones starting from root boundary boundaries.
 - **Phase 4 CSV Import & Export Enablers:** Dedicated flat CSV parsers/stringifiers allowing instant local backups or communication transfers of Product Types and Schedule Configurations.
@@ -41,7 +43,10 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 │       ├── index.css       # Tailwind entry point
 │       ├── components/
 │       │   ├── ProductTypeManager.jsx # Product Type & Schedule Configuration Dashboard (Phase 4)
-│       │   └── Settings.jsx  # Workspace display settings
+│       │   ├── ProductRegistry.jsx    # Project registration and CSV verification
+│       │   ├── ProjectTracker.jsx     # Project monitoring and receipt tracking
+│       │   ├── Dashboard.jsx           # Product, product type, and component dashboards
+│       │   └── Settings.jsx            # Workspace display settings
 │       └── utils/
 │           ├── csv.js        # RFC 4180 CSV parsing & serialization utilities (Phase 4)
 │           ├── date.js       # Shared date format preference and display helpers
