@@ -44,9 +44,30 @@ export async function deleteProductType(id) {
   return api.dbRun(sql, [id]);
 }
 
+export async function deleteAllProductTypes() {
+  return api.dbRun(`DELETE FROM product_types`);
+}
+
 export async function renameProductType(id, name) {
   const sql = `UPDATE product_types SET name = ? WHERE id = ?`;
   return api.dbRun(sql, [name, id]);
+}
+
+export async function clearProductTypeConfiguration(productTypeId) {
+  const schedules = await getSchedules(productTypeId);
+  for (const schedule of schedules) {
+    await api.dbRun(`DELETE FROM component_schedules WHERE schedule_id = ?`, [schedule.id]);
+    await api.dbRun(`DELETE FROM milestones WHERE schedule_id = ?`, [schedule.id]);
+    const referencedProjects = await api.dbQuery(
+      `SELECT COUNT(*) as count FROM projects WHERE schedule_id = ?`,
+      [schedule.id]
+    );
+    if (referencedProjects[0].count === 0) {
+      await api.dbRun(`DELETE FROM schedules WHERE id = ?`, [schedule.id]);
+    }
+  }
+  await api.dbRun(`DELETE FROM product_type_components WHERE product_type_id = ?`, [productTypeId]);
+  return api.dbRun(`UPDATE product_types SET status = 'invalid' WHERE id = ?`, [productTypeId]);
 }
 
 /**

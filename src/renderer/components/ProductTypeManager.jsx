@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Trash2, Edit, ChevronRight, ArrowLeft, Download, Upload, 
+  Plus, Trash2, Edit, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Download, Upload, 
   Search, CheckCircle2, AlertCircle, Settings, Layers, Calendar, 
   Tag, Info, Check, RefreshCw, X
 } from 'lucide-react';
 import * as db from '../utils/db';
+import BatchCsvSection from './BatchCsvSection';
+import ImportReview from './ImportReview';
+import MilestoneTimeline from './MilestoneTimeline';
 import { 
   parseCSV, 
   stringifyProductTypes, 
@@ -31,6 +34,8 @@ export default function ProductTypeManager() {
   const [showValidityModal, setShowValidityModal] = useState(false);
   const [ptRenameId, setPtRenameId] = useState(null);
   const [ptRenameInput, setPtRenameInput] = useState('');
+  const [importReview, setImportReview] = useState(null);
+  const [showBatchCsvOptions, setShowBatchCsvOptions] = useState(false);
 
   // Selected Product Type detail state
   const [selectedPt, setSelectedPt] = useState(null);
@@ -238,6 +243,20 @@ export default function ProductTypeManager() {
     }
   };
 
+  const handleDeleteAllProductTypes = async () => {
+    if (!confirm('Delete all product types? This will remove all associated schedules and project links.')) return;
+    if (!confirm('This cannot be undone. Continue deleting all product types?')) return;
+
+    try {
+      await db.deleteAllProductTypes();
+      setSelectedPt(null);
+      triggerAlert('success', 'All product types were deleted successfully.');
+      await loadProductTypes();
+    } catch (err) {
+      triggerAlert('error', `Failed to delete all product types: ${err.message}`);
+    }
+  };
+
   const loadGlobalComponents = async () => {
     try {
       const data = await db.getComponents();
@@ -418,15 +437,23 @@ export default function ProductTypeManager() {
     if (!componentForm.name.trim()) return;
 
     try {
-      const res = await db.addComponent(componentForm.name.trim(), componentForm.remarks.trim());
-      const newCompId = res.lastID;
+      const componentName = componentForm.name.trim();
+      const existingComponents = await db.getComponents();
+      const existingComponent = existingComponents.find(component =>
+        component.name.toLowerCase() === componentName.toLowerCase()
+      );
+      const componentId = existingComponent
+        ? existingComponent.id
+        : (await db.addComponent(componentName, componentForm.remarks.trim())).lastID;
       
       // Attach to product type immediately
-      await db.attachComponentToProductType(newCompId, selectedPt.id);
+      await db.attachComponentToProductType(componentId, selectedPt.id);
       
       setComponentForm({ name: '', remarks: '' });
       setShowAddComponentModal(false);
-      triggerAlert('success', 'New component created and attached successfully!');
+      triggerAlert('success', existingComponent
+        ? 'Existing component found and attached successfully!'
+        : 'New component created and attached successfully!');
       loadGlobalComponents();
       refreshPtDetails();
     } catch (err) {
@@ -573,7 +600,7 @@ export default function ProductTypeManager() {
     }
   };
 
-  // 2. Import Product Types
+  // 2. Import Product Types: parse and stage first; database changes happen after confirmation.
   const handleImportProductTypes = async () => {
     try {
       const openRes = await window.electronAPI.showOpenDialog({
@@ -595,64 +622,193 @@ export default function ProductTypeManager() {
       const headers = csvData[0].map(h => h.trim().toLowerCase());
       const nameIdx = headers.indexOf('product type name');
       const compIdx = headers.indexOf('attached components');
+      const isFullBackup = [
+        'schedule name', 'milestone name', 'component name', 'lead time (days)'
+      ].every(header => headers.includes(header));
 
       if (nameIdx === -1) {
         triggerAlert('error', 'Invalid CSV format. Missing required column: "Product Type Name".');
         return;
       }
 
-      setLoading(true);
-      let importedCount = 0;
-
-      // Process row by row
-      for (let i = 1; i < csvData.length; i++) {
-        const row = csvData[i];
-        if (row.length <= nameIdx || !row[nameIdx].trim()) continue;
-
-        const ptName = row[nameIdx].trim();
-        const compStr = compIdx !== -1 && row[compIdx] ? row[compIdx].trim() : '';
-
-        // Insert product type if not exists
-        let ptId;
-        const currentPts = await db.getProductTypes();
-        const existing = currentPts.find(p => p.name.toLowerCase() === ptName.toLowerCase());
-
-        if (!existing) {
-          const addRes = await db.addProductType(ptName);
-          ptId = addRes.lastID;
-        } else {
-          ptId = existing.id;
-        }
-
-        // Attach components
-        if (compStr) {
-          const compNames = compStr.split(';').map(n => n.trim()).filter(Boolean);
-          const currentComps = await db.getComponents();
-
-          for (const name of compNames) {
-            let compId;
-            const existingComp = currentComps.find(c => c.name.toLowerCase() === name.toLowerCase());
-            
-            if (!existingComp) {
-              const addCompRes = await db.addComponent(name, '');
-              compId = addCompRes.lastID;
-              // Refresh lists
-              currentComps.push({ id: compId, name, remarks: '' });
-            } else {
-              compId = existingComp.id;
-            }
-
-            await db.attachComponentToProductType(compId, ptId);
-          }
-        }
-
-        await db.updateProductTypeStatus(ptId);
-        importedCount++;
+      if (!isFullBackup && compIdx === -1) {
+        triggerAlert('error', 'Invalid CSV format. Missing required column: "Attached Components".');
+        return;
       }
 
-      triggerAlert('success', `Import completed! Successfully loaded ${importedCount} Product Types.`);
-      loadProductTypes();
-      loadGlobalComponents();
+      const currentPts = await db.getProductTypes();
+      const importedByName = new Map();
+      for (let i = 1; i < csvData.length; i++) {
+        const row = csvData[i];
+        const ptName = row[nameIdx]?.trim();
+        if (!ptName) continue;
+        if (!importedByName.has(ptName.toLowerCase())) {
+          importedByName.set(ptName.toLowerCase(), { name: ptName, rows: [] });
+        }
+        importedByName.get(ptName.toLowerCase()).rows.push(row);
+      }
+
+      const reviewRows = [...importedByName.values()].map(item => {
+        const existing = currentPts.find(pt => pt.name.toLowerCase() === item.name.toLowerCase());
+        return {
+          ...item,
+          existing,
+          decision: existing ? 'keep-existing' : 'import'
+        };
+      });
+
+      if (reviewRows.length === 0) {
+        triggerAlert('error', 'CSV contains no product type records.');
+        return;
+      }
+      setImportReview({ mode: isFullBackup ? 'full' : 'partial', headers, componentIndex: compIdx, rows: reviewRows });
+    } catch (err) {
+      triggerAlert('error', `Import failed: ${err.message}`);
+    }
+  };
+
+  const setImportDecisionForAll = (decision) => {
+    setImportReview(review => review && {
+      ...review,
+      rows: review.rows.map(row => row.existing ? { ...row, decision } : row)
+    });
+  };
+
+  const importComponent = async (name, productTypeId) => {
+    const components = await db.getComponents();
+    let component = components.find(item => item.name.toLowerCase() === name.toLowerCase());
+    if (!component) {
+      const result = await db.addComponent(name, '');
+      component = { id: result.lastID, name, remarks: '' };
+    }
+    await db.attachComponentToProductType(component.id, productTypeId);
+    return component.id;
+  };
+
+  const applyPartialImport = async (item, productTypeId, overwrite) => {
+    if (overwrite) await db.clearProductTypeConfiguration(productTypeId);
+    const componentNames = new Set();
+    item.rows.forEach(row => (row[importReview.componentIndex] || '').split(';').map(name => name.trim()).filter(Boolean).forEach(name => componentNames.add(name)));
+    for (const componentName of componentNames) await importComponent(componentName, productTypeId);
+    await db.updateProductTypeStatus(productTypeId);
+  };
+
+  const applyFullImport = async (item, productTypeId, overwrite) => {
+    if (overwrite) await db.clearProductTypeConfiguration(productTypeId);
+    const scheduleMap = new Map();
+    const milestoneRows = [];
+    const componentRows = [];
+    const importedComponentNames = new Set();
+    const headers = importReview.headers;
+    const index = header => headers.indexOf(header);
+
+    for (const row of item.rows) {
+      const scheduleName = row[index('schedule name')]?.trim();
+      if (scheduleName && !scheduleMap.has(scheduleName.toLowerCase())) {
+        const schedule = await db.getSchedules(productTypeId);
+        const existing = schedule.find(item => item.name.toLowerCase() === scheduleName.toLowerCase());
+        scheduleMap.set(scheduleName.toLowerCase(), existing ? existing.id : await db.addSchedule(productTypeId, scheduleName));
+      }
+      if (row[index('milestone name')]?.trim()) milestoneRows.push(row);
+      const componentField = row[index('component name')]?.trim();
+      if (componentField) {
+        componentField.split(';').map(name => name.trim()).filter(Boolean).forEach(name => importedComponentNames.add(name));
+        if (row[index('component anchor milestone')]?.trim() || row[index('lead time (days)')]?.trim()) {
+          componentRows.push(row);
+        }
+      }
+    }
+
+    for (const row of milestoneRows) {
+      const scheduleId = scheduleMap.get(row[index('schedule name')].trim().toLowerCase());
+      const milestones = await db.getMilestones(scheduleId);
+      const name = row[index('milestone name')].trim();
+      const existing = milestones.find(item => item.name.toLowerCase() === name.toLowerCase());
+      const payload = {
+        schedule_id: scheduleId,
+        name,
+        anchor_id: null,
+        offset: parseInt(row[index('offset (days)')], 10) || 0,
+        remark: row[index('milestone remark')]?.trim() || ''
+      };
+      if (existing) payload.id = existing.id;
+      await db.saveMilestone(payload);
+    }
+
+    for (const row of milestoneRows) {
+      const scheduleId = scheduleMap.get(row[index('schedule name')].trim().toLowerCase());
+      const anchorName = row[index('anchor milestone name')]?.trim();
+      if (!anchorName) continue;
+      const milestones = await db.getMilestones(scheduleId);
+      const current = milestones.find(item => item.name.toLowerCase() === row[index('milestone name')].trim().toLowerCase());
+      const anchor = milestones.find(item => item.name.toLowerCase() === anchorName.toLowerCase());
+      if (current && anchor && !['contract signed', 'ros'].includes(current.name.toLowerCase())) {
+        await db.saveMilestone({ id: current.id, schedule_id: scheduleId, name: current.name, anchor_id: anchor.id, offset: current.offset, remark: current.remark });
+      }
+    }
+
+    for (const componentName of importedComponentNames) {
+      await importComponent(componentName, productTypeId);
+    }
+
+    const componentRowGroups = new Map();
+    for (const row of componentRows) {
+      const scheduleId = scheduleMap.get(row[index('schedule name')].trim().toLowerCase());
+      const componentNames = row[index('component name')]
+        .split(';')
+        .map(name => name.trim())
+        .filter(Boolean);
+      const groupKey = `${scheduleId}:${componentNames.map(name => name.toLowerCase()).sort().join(';')}`;
+      const group = componentRowGroups.get(groupKey) || [];
+      group.push({ row, scheduleId, componentNames });
+      componentRowGroups.set(groupKey, group);
+    }
+
+    const componentImportRows = [];
+    for (const group of componentRowGroups.values()) {
+      const isLegacyExportGroup = group[0].componentNames.length > 1 && group.length === group[0].componentNames.length;
+      group.forEach((entry, rowIndex) => componentImportRows.push({
+        ...entry,
+        componentNames: isLegacyExportGroup ? [entry.componentNames[rowIndex]] : entry.componentNames
+      }));
+    }
+
+    for (const { row, scheduleId, componentNames } of componentImportRows) {
+      const anchorName = row[index('component anchor milestone')]?.trim();
+      const milestones = await db.getMilestones(scheduleId);
+      const anchor = milestones.find(item => item.name.toLowerCase() === anchorName.toLowerCase());
+      if (anchor) {
+        for (const componentName of componentNames) {
+          const componentId = await importComponent(componentName, productTypeId);
+          await db.saveComponentSchedule(scheduleId, componentId, anchor.id, parseInt(row[index('lead time (days)')], 10) || 0);
+        }
+      }
+    }
+    await db.updateProductTypeStatus(productTypeId);
+    const statusIndex = importReview.headers.indexOf('product type status');
+    if (statusIndex !== -1 && item.rows[0]?.[statusIndex]) {
+      await window.electronAPI.dbRun(`UPDATE product_types SET status = ? WHERE id = ?`, [item.rows[0][statusIndex].trim(), productTypeId]);
+    }
+  };
+
+  const confirmProductTypeImport = async () => {
+    if (!importReview) return;
+    setLoading(true);
+    try {
+      for (const item of importReview.rows.filter(row => row.decision === 'import')) {
+        let productType = item.existing;
+        const overwrite = Boolean(productType);
+        if (!productType) {
+          const result = await db.addProductType(item.name);
+          productType = { id: result.lastID, name: item.name };
+        }
+        if (importReview.mode === 'full') await applyFullImport(item, productType.id, overwrite);
+        else await applyPartialImport(item, productType.id, overwrite);
+      }
+      setImportReview(null);
+      await loadProductTypes();
+      await loadGlobalComponents();
+      triggerAlert('success', 'CSV import completed successfully.');
     } catch (err) {
       triggerAlert('error', `Import failed: ${err.message}`);
     } finally {
@@ -717,8 +873,8 @@ export default function ProductTypeManager() {
         for (const schedule of await db.getSchedules(productType.id)) {
           const scheduleMilestones = await db.getMilestones(schedule.id);
           const componentSchedules = await db.getComponentSchedules(schedule.id);
-          scheduleMilestones.forEach(milestone => rows.push([productType.name, components.map(component => component.name).join(';'), schedule.name, milestone.name, scheduleMilestones.find(anchor => anchor.id === milestone.anchor_id)?.name || '', milestone.offset, milestone.remark || '', '', '']));
-          componentSchedules.forEach(config => rows.push([productType.name, components.map(component => component.name).join(';'), schedule.name, '', '', '', '', scheduleMilestones.find(milestone => milestone.id === config.anchor_milestone_id)?.name || '', config.lead_time]));
+          scheduleMilestones.forEach(milestone => rows.push([productType.name, components.map(component => component.name).join(';'), schedule.name, milestone.name, scheduleMilestones.find(anchor => anchor.id === milestone.anchor_id)?.name || '', milestone.offset, milestone.remark || '', '', '', productType.status]));
+          componentSchedules.forEach(config => rows.push([productType.name, components.find(component => component.id === config.component_id)?.name || `Component #${config.component_id}`, schedule.name, '', '', '', '', scheduleMilestones.find(milestone => milestone.id === config.anchor_milestone_id)?.name || '', config.lead_time, productType.status]));
         }
       }
       const saveRes = await window.electronAPI.showSaveDialog({ title: 'Export Full Product Type Backup', defaultPath: 'product_types_full_backup.csv', filters: [{ name: 'CSV Files', extensions: ['csv'] }] });
@@ -1081,9 +1237,138 @@ export default function ProductTypeManager() {
     reason: 'Lead-time status is loading.'
   };
 
+  const renderImportReview = () => {
+    const newRows = importReview.rows.filter(row => !row.existing);
+    const existingRows = importReview.rows.filter(row => row.existing);
+    const renderRows = rows => rows.map(row => (
+      <tr key={row.name} className="border-t border-gray-100">
+        <td className="px-4 py-3 font-semibold text-gray-900">{row.name}</td>
+        <td className="px-4 py-3 text-xs text-gray-500">
+          {importReview.mode === 'partial'
+            ? [...new Set(row.rows.flatMap(sourceRow => (sourceRow[importReview.componentIndex] || '').split(';').map(name => name.trim()).filter(Boolean)))].join(', ') || 'No components'
+            : `${new Set(row.rows.map(sourceRow => sourceRow[importReview.headers.indexOf('schedule name')]).filter(Boolean)).size} schedule(s)`}
+        </td>
+        <td className="px-4 py-3 text-right">
+          {row.existing ? (
+            <select
+              value={row.decision}
+              onChange={event => setImportReview(review => ({
+                ...review,
+                rows: review.rows.map(item => item.name === row.name ? { ...item, decision: event.target.value } : item)
+              }))}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="keep-existing">Keep existing</option>
+              <option value="import">Keep imported</option>
+            </select>
+          ) : (
+            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">WILL BE ADDED</span>
+          )}
+        </td>
+      </tr>
+    ));
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Confirm CSV Import</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Review the product types detected in the uploaded CSV before anything is changed.
+            </p>
+          </div>
+          {existingRows.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setImportDecisionForAll('keep-existing')} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">Keep all existing</button>
+              <button onClick={() => setImportDecisionForAll('import')} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Keep all imported</button>
+            </div>
+          )}
+        </div>
+
+        {importReview.mode === 'partial' ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertCircle className="h-5 w-5" />
+              <span>Partial CSV import</span>
+            </div>
+            <p className="mt-2 text-sm">
+              This CSV contains only product type names and components. New product types will be created as INVALID with no schedules. Choosing Keep imported for an existing product type removes its schedules, milestones, and procurement lead times, then imports the listed components.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-5 text-indigo-950">
+            <div className="flex items-center gap-2 font-bold">
+              <CheckCircle2 className="h-5 w-5" />
+              <span>Full CSV import</span>
+            </div>
+            <p className="mt-2 text-sm">
+              This CSV contains schedules, milestones, components, and procurement lead times. New product types receive the complete imported configuration. Choosing Keep imported replaces the existing configuration and restores the imported product type status.
+            </p>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-6 py-4">
+            <h3 className="font-bold text-gray-900">New Product Types from the CSV Uploaded</h3>
+            <p className="mt-1 text-xs text-gray-500">These names do not currently exist and can be added without conflict.</p>
+          </div>
+          {newRows.length === 0 ? (
+            <p className="px-6 py-8 text-center text-sm text-gray-400">No new product types found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-gray-50 text-xs font-bold uppercase text-gray-500"><tr><th className="px-4 py-3">Product type</th><th className="px-4 py-3">Imported data</th><th className="px-4 py-3 text-right">Result</th></tr></thead>
+                <tbody>{renderRows(newRows)}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-white shadow-sm">
+          <div className="border-b border-amber-100 px-6 py-4">
+            <h3 className="font-bold text-gray-900">Existing Product Types</h3>
+            <p className="mt-1 text-xs text-gray-500">Choose to keep the existing product type or replace it with the imported data.</p>
+            <p className="mt-1 text-xs text-red-700 font-semibold">
+            If the imported data only contains product type name and components, existing milestones and procurement lead times will be LOST!
+            </p>
+          </div>
+          {existingRows.length === 0 ? (
+            <p className="px-6 py-8 text-center text-sm text-gray-400">No existing product type conflicts found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-amber-50 text-xs font-bold uppercase text-gray-500"><tr><th className="px-4 py-3">Product type</th><th className="px-4 py-3">Imported data</th><th className="px-4 py-3 text-right">Decision</th></tr></thead>
+                <tbody>{renderRows(existingRows)}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button onClick={() => setImportReview(null)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel import</button>
+          <button onClick={confirmProductTypeImport} disabled={loading} className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300">{loading ? 'Importing...' : 'Confirm import'}</button>
+        </div>
+      </div>
+    );
+  };
+
   // ==========================================
   // VIEW RENDERERS
   // ==========================================
+
+  if (importReview) return (
+    <ImportReview
+      importReview={importReview}
+      loading={loading}
+      onSetDecisionForAll={setImportDecisionForAll}
+      onSetDecision={(name, decision) => setImportReview(review => ({
+        ...review,
+        rows: review.rows.map(item => item.name === name ? { ...item, decision } : item)
+      }))}
+      onCancel={() => setImportReview(null)}
+      onConfirm={confirmProductTypeImport}
+    />
+  );
 
   if (selectedPt) {
     // ------------------------------------------
@@ -1341,31 +1626,7 @@ export default function ProductTypeManager() {
                     )}
                   </div>}
 
-                  {scheduleSubView === 'timeline' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {buildMilestoneTree(milestones).map(rootNode => {
-                        const timeline = buildMilestoneTimeline(milestones, rootNode);
-                        return (
-                          <div key={rootNode.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <h4 className="font-bold text-sm text-indigo-900 border-b border-gray-200 pb-3 mb-4">
-                              {rootNode.name} timeline
-                            </h4>
-                            <div className="relative border-l-2 border-indigo-200 ml-2 space-y-4">
-                              {timeline.map(item => (
-                                <div key={item.id} className="relative pl-5">
-                                  <span className="absolute w-2.5 h-2.5 bg-indigo-600 rounded-full -left-[7px] top-1.5" />
-                                  <p className="font-semibold text-sm text-gray-900">{item.name}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {item.anchor_id ? `Days to ${milestones.find(anchor => anchor.id === item.anchor_id)?.name || 'anchored milestone'}: ${Math.abs(item.offset)} ${item.offset < 0 ? 'before' : 'after'}` : 'Root boundary'}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {scheduleSubView === 'timeline' && <MilestoneTimeline milestones={milestones} />}
 
                   {/* FLAT LIST TABLE */}
                   {scheduleSubView === 'records' && <div>
@@ -1836,10 +2097,29 @@ export default function ProductTypeManager() {
       {/* Product type registration */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Register new product types</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Create, view, edit, and configure structural requirements for Chillers, Cooling Systems, and more.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900">Register New Product Types</h2>
+          <div className="mt-3">
+            <p className="text-sm text-gray-800">
+              Every project is affiliated with a product type. Register product types here first before registering projects. 
+            </p>
+            <p className="text-sm text-gray-800 mt-3">
+              To register new product types:
+            </p>
+            <ol className="list-decimal list-inside text-sm text-gray-800 mt-2 space-y-1">
+              <li>Create a new product type by clicking the <span className="font-bold">+ New Product Type</span> button. Newly created product types are initially <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800 border border-red-200">INVALID</span>.</li>
+              <li>Furnish the details (schedule, components) by clicking the <span className="font-bold">Manage Config</span> button.</li>
+              <li>Only product types that are <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">SUB-VALID</span> and <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">VALID</span> can be registered under a project.</li>
+            </ol>
+            <button
+              type="button"
+              onClick={() => setShowValidityModal(true)}
+              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition mt-3"
+              title="Learn more about Product Type status"
+            >
+              <span>Learn more about validity status here</span>
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold">i</span>
+            </button>
+          </div>
         </div>
         <div>
           <button
@@ -1853,42 +2133,15 @@ export default function ProductTypeManager() {
       </div>
 
       {/* Bulk registration */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-gray-50 rounded-lg border border-gray-200 p-4">
-        <div>
-          <h3 className="text-sm font-bold text-gray-800">Bulk Registration</h3>
-          <p className="text-xs text-gray-500 mt-1">Download a template, import product types, or export the current component lists.</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleDownloadPtTemplate}
-            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
-          >
-            <Download className="w-3.5 h-3.5 text-gray-500" />
-            <span>Get CSV Template</span>
-          </button>
-          <button
-            onClick={handleExportProductTypes}
-            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
-          >
-            <Download className="w-3.5 h-3.5 text-gray-500" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={handleImportProductTypes}
-            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
-          >
-            <Upload className="w-3.5 h-3.5 text-gray-500" />
-            <span>Import CSV</span>
-          </button>
-          <button
-            onClick={handleExportFullBackup}
-            className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
-          >
-            <Download className="w-3.5 h-3.5 text-gray-500" />
-            <span>Full Backup CSV</span>
-          </button>
-        </div>
-      </div>
+      <BatchCsvSection
+        open={showBatchCsvOptions}
+        onToggle={() => setShowBatchCsvOptions(open => !open)}
+        onDownloadPtTemplate={handleDownloadPtTemplate}
+        onImport={handleImportProductTypes}
+        onExportFull={handleExportFullBackup}
+        onExportPartial={handleExportProductTypes}
+        onDeleteAll={handleDeleteAllProductTypes}
+      />
 
       {/* Floating global Alert */}
       {alert && (

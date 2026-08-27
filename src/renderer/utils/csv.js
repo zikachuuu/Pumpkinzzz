@@ -199,6 +199,6 @@ export function stringifyMilestonesOnly(productType, schedules, milestonesMap) {
 }
 
 export function stringifyFullProductTypeBackup(productRows) {
-  const headers = ['Product Type Name', 'Component Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 'Component Anchor Milestone', 'Lead Time (Days)'];
+  const headers = ['Product Type Name', 'Component Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 'Component Anchor Milestone', 'Lead Time (Days)', 'Product Type Status'];
   return stringifyCSV(headers, productRows);
 }

@@ -652,6 +652,9 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                               const milestones = allMilestones[p.schedule_id] || [];
                               const deadlines = calculateMilestoneDeadlines(p, milestones);
                               const compScheds = allComponentSchedules[p.schedule_id] || [];
+                              const receivedDates = typeof p.actual_received_dates === 'string'
+                                ? JSON.parse(p.actual_received_dates || '{}')
+                                : (p.actual_received_dates || {});
                               const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents, urgencySettings);
 
                               if (computedComps.length === 0) {
