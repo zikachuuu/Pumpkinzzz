@@ -20,13 +20,13 @@ export default function BatchCsvSection({ open, onToggle, onDownloadPtTemplate, 
       >
         <div>
           <h2 className="text-xl font-bold text-gray-900">Batch Registration with CSV</h2>
-          <p className="mt-1 text-sm text-gray-500">You can also share your product types easily or create a backup copy.</p>
+          <p className="text-sm text-gray-800 mt-3">Have a lot of product types to register? Instead of registering them one by one manually, consider adding them in bulk using CSV!</p>
+          <p className="text-sm text-gray-80 mt-1">You can also share your product types easily or create a backup copy.</p>
         </div>
         {open ? <ChevronUp className="h-5 w-5 shrink-0 text-gray-500" /> : <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" />}
       </div>
       {open && (
         <div id="batch-csv-options" className="mt-3" onClick={event => event.stopPropagation()}>
-          <p className="text-sm text-gray-800">Have a lot of product types to register? Instead of registering them one by one manually, consider adding them in bulk using CSV!</p>
           <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="space-y-2">
               <ActionRow description={<><p className="mb-1">Download a blank two-column product type and components template.</p><p className="mb-1">Product types imported using this template will be added as <Status>INVALID</Status></p></>} action={<button onClick={onDownloadPtTemplate} className="flex shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"><Download className="h-3.5 w-3.5 text-gray-500" />Get Template</button>} />

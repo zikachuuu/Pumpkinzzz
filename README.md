@@ -16,7 +16,9 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 - **Component Receipt Tracking:** Project Tracker stores actual received dates per component and reports whether receipt occurred before or after its anchor deadline.
 - **Product Type & Schedule Master Configuration (Phase 4):** A robust registry enabling users to manage product types, build custom milestone dependency graphs, attach raw parts, and establish custom order lead times. Product Type Registry includes validity guidance, searchable component attachment, relationship/timeline/record views, and per-schedule completion feedback.
 - **Interactive Milestone Tree Diagram (Phase 4):** Visualizes the recursive hierarchical anchors and offset relations of custom milestones starting from root boundary boundaries.
-- **Phase 4 CSV Import & Export Enablers:** Dedicated flat CSV parsers/stringifiers allowing instant local backups or communication transfers of Product Types and Schedule Configurations.
+- **CSV Product Type Import & Export:** Supports partial product-type/component CSVs and full configuration backups. Imports open a confirmation interface before mutation, separate new records from existing conflicts, support per-row or bulk overwrite decisions, preserve full-backup status, and protect project-linked schedules from foreign-key failures.
+- **CSV Component Compatibility:** Full backups use one component per lead-time row, while imports remain compatible with older semicolon-separated component rows and preserve individual component lead times.
+- **Modular Product Type UI:** Product Type presentation is split into reusable components: `BatchCsvSection.jsx`, `ImportReview.jsx`, and `MilestoneTimeline.jsx`. `ProductTypeManager.jsx` remains the stateful/logical container and passes explicit props/callbacks to these presentation components.
 - **Robust CSV Bulk Importers (Phase 5):** High-quality bulk uploads with visual verification spreadsheets highlighting validation errors and key constraints (such as clashing Tag Nos).
 
 ---
@@ -43,6 +45,9 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 │       ├── index.css       # Tailwind entry point
 │       ├── components/
 │       │   ├── ProductTypeManager.jsx # Product Type & Schedule Configuration Dashboard (Phase 4)
+│       │   ├── BatchCsvSection.jsx     # Collapsible Product Type CSV actions
+│       │   ├── ImportReview.jsx        # Partial/full CSV confirmation tables
+│       │   ├── MilestoneTimeline.jsx   # Pure milestone timeline presentation
 │       │   ├── ProductRegistry.jsx    # Project registration and CSV verification
 │       │   ├── ProjectTracker.jsx     # Project monitoring and receipt tracking
 │       │   ├── Dashboard.jsx           # Product, product type, and component dashboards
@@ -60,6 +65,25 @@ Pumpkinzzz is a high-performance, cross-platform project schedule tracking appli
 ├── vite.config.js          # Vite build options
 └── package.json            # Dependencies and npm execution scripts
 ```
+
+### Product Type Import Notes
+
+The Product Type Registry has two CSV import modes:
+
+- **Partial CSV:** Requires `Product Type Name` and `Attached Components`. New records are created as `invalid`. Choosing Keep imported for an existing record removes its schedules, milestones, procurement lead times, and component attachments before importing components.
+- **Full CSV backup:** Uses schedule, milestone, component, anchor, lead-time, and status columns. New records receive the complete configuration. Choosing Keep imported rebuilds an existing record and restores the exported status. Component lead-time rows use one component name per row; older semicolon-separated component rows remain supported.
+
+Imports are staged on a confirmation screen. Existing product types default to Keep existing, while new product types are marked for addition. The screen supports individual decisions and bulk Keep all existing/Keep all imported actions. Schedules referenced by existing projects are retained during overwrite cleanup to satisfy SQLite foreign keys.
+
+### Refactor Handoff
+
+`ProductTypeManager.jsx` is the stateful Product Type container. Presentation-only responsibilities currently live in:
+
+- `BatchCsvSection.jsx`: collapsible CSV controls and actions.
+- `ImportReview.jsx`: import mode explanation, new/conflicting product type tables, and decision controls.
+- `MilestoneTimeline.jsx`: pure milestone tree construction, cumulative timeline calculation, and timeline markup.
+
+When extracting additional UI, pass data and callbacks from `ProductTypeManager.jsx`; keep database calls, CSV parsing/application, and mutation logic in the container or a dedicated hook/service.
 
 ---
 

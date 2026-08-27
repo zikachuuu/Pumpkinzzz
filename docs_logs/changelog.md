@@ -2,6 +2,33 @@
 
 This changelog documents the development history, structural designs, and code files added/modified for the Pumpkinzzz project schedule tracking application.
 
+## [1.0.0-dev] - 2026-08-27 (CSV Workflow, Timeline, and Component Refactor)
+
+### Changed
+- **CSV import confirmation:** Product Type imports are parsed and staged before database changes. The confirmation view separates new product types from existing conflicts, supports per-row Keep existing/Keep imported choices, and provides Keep all existing/Keep all imported actions.
+- **CSV import modes:** The confirmation view clearly identifies partial CSVs (product type plus components only) versus full CSV backups (schedules, milestones, components, and procurement lead times). Partial imports create invalid new product types; overwriting an existing product type clears its schedules, milestones, lead times, and component attachments. Full imports rebuild configuration and restore the exported product type status.
+- **CSV component compatibility:** Full exports now write one component per lead-time row. Imports split semicolon-separated component values and support legacy exports that repeated the full component list, preserving individual component lead times. Components appearing on milestone rows are also attached.
+- **Safe overwrite cleanup:** `src/renderer/utils/db.js` clears lead-time rows before milestones and avoids deleting schedules referenced by existing project records, preventing SQLite foreign-key failures during full imports.
+- **Manual component creation:** Create and Attach reuses an existing global component when names match case-insensitively, avoiding duplicate-name constraint failures.
+- **Milestone timeline:** Timeline entries show the direct relationship to their anchor and, only for deeper descendants, the cumulative relationship to the root milestone. Root and direct-root entries omit repeated information.
+- **Collapsible CSV controls:** Batch Registration with CSV is collapsed by default and can be opened by clicking the section or arrow. It supports keyboard toggling and keeps action clicks from collapsing the section.
+- **UI modularization:** Extracted presentation-only components from `ProductTypeManager.jsx`:
+  - `src/renderer/components/BatchCsvSection.jsx` owns the collapsible CSV action panel.
+  - `src/renderer/components/ImportReview.jsx` owns the two-table import confirmation view.
+  - `src/renderer/components/MilestoneTimeline.jsx` owns pure timeline/tree presentation and calculations.
+  `ProductTypeManager.jsx` remains the stateful container for database access, import/export handlers, product-type state, and callbacks.
+
+### Current Architecture Notes
+- The renderer uses explicit callback props between the stateful Product Type container and extracted presentation components. The extracted components do not import `db` or CSV utilities.
+- Full backup CSVs include a `Product Type Status` column so status can be restored after import.
+- Product-type overwrite cleanup preserves schedules referenced by projects; those schedules may be reused by the imported configuration rather than deleted.
+- `ProductTypeManager.jsx` still contains the remaining detail tabs, CRUD handlers, import application logic, and modal markup. Further extraction should preserve the container/presentation boundary established above.
+
+### Verification
+- `conda run -n pumpkinzzz-env npm run build:frontend` passed after the refactor and CSV workflow changes.
+- Editor diagnostics reported no errors in `ProductTypeManager.jsx`, `BatchCsvSection.jsx`, `ImportReview.jsx`, or `MilestoneTimeline.jsx`.
+- Direct JSX parsing with esbuild passed for `ProductTypeManager.jsx`.
+
 ## [1.0.0-dev] - 2026-08-26 (Internal Test 2)
 
 ### Changed
