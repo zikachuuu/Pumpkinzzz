@@ -687,11 +687,39 @@ export default function ProductRegistry({ onRedirectToTracker }) {
       {/* Registry Actions Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Register new projects here</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Register projects manually or import multiple entries via CSV. Select a valid or sub-valid product type and a schedule with complete lead-time configuration.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900">Register New Projects</h2>
+          <div className="mt-3">
+            <p className="text-sm text-gray-800">
+              Register new projects here.
+            </p>
+            <p className="text-sm text-gray-800 mt-2">
+              You can either upload a CSV file for batch registration or fill in the manual form below. Ensure that all required fields are completed and that Tag Nos are unique.
+            </p>
+            <p className="text-sm text-gray-800 mt-3">
+              Every project is affiliated with a product type and a schedule. Only product types that are <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">SUB-VALID</span> and <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">VALID</span> can be registered under a project.
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* Floating Alert */}
+      {alert && (
+        <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
+          alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          <span className="text-sm font-semibold">{alert.message}</span>
+        </div>
+      )}
+
+      {/*Bulk Registration Instructions and buttons*/}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <h3 className="font-bold text-gray-900 text-md mb-3">
+          Batch Project Registration with CSV
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Use the CSV template to prepare multiple project entries. Ensure all required fields are filled and that Tag Nos are unique. Upload the completed CSV to verify and register projects in bulk.
+        </p>
         <div className="flex items-center space-x-3">
           <button
             onClick={handleDownloadTemplate}
@@ -710,15 +738,12 @@ export default function ProductRegistry({ onRedirectToTracker }) {
         </div>
       </div>
 
-      {/* Floating Alert */}
-      {alert && (
-        <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-          alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          <span className="text-sm font-semibold">{alert.message}</span>
-        </div>
-      )}
+      {/* ---- OR ---- (lines on both sides extended to both ends) */}
+      <div className="flex items-center justify-center space-x-3">
+        <div className="flex-1 h-px bg-gray-300"></div>
+        <span className="text-gray-400 font-semibold">OR</span>
+        <div className="flex-1 h-px bg-gray-300"></div>
+      </div>
 
       {/* Manual Entry Form */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">

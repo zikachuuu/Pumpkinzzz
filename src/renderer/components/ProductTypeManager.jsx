@@ -1470,7 +1470,7 @@ export default function ProductTypeManager() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Attached Components ({attachedComponents.length})
+              BOM - Bill of Materials ({attachedComponents.length})
             </button>
             <button
               onClick={() => setActiveTab('leadtimes')}
@@ -1480,7 +1480,7 @@ export default function ProductTypeManager() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Component Lead Times
+              Procurement Lead Times
             </button>
           </nav>
         </div>
@@ -1491,7 +1491,7 @@ export default function ProductTypeManager() {
             {/* Left Column: Schedules List */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm flex flex-col h-fit">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-gray-900 text-md">Schedules List</h3>
+                <h3 className="font-bold text-gray-900 text-md">Schedules</h3>
                 <button
                   onClick={() => setShowAddScheduleModal(true)}
                   className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-semibold shadow transition"
@@ -1557,7 +1557,7 @@ export default function ProductTypeManager() {
                   <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg">
-                        Milestones inside "{selectedSchedule.name}"
+                        Milestones of Schedule: {selectedSchedule.name}
                       </h3>
                       <p className="text-xs text-gray-500 mt-1">
                         Schedules require Contract Signed and ROS as boundaries. Define custom nodes and recursive attachments.
@@ -1793,9 +1793,9 @@ export default function ProductTypeManager() {
 
             {/* Right List: Attached Components Table */}
             <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 text-lg mb-2">Attached Component List</h3>
+              <h3 className="font-bold text-gray-900 text-lg mb-2">BOM - Bill of Materials</h3>
               <p className="text-xs text-gray-500 mb-4">
-                These are raw materials and parts that must be ordered specifically for this product type.
+                Components list of this product type. You can attach existing components from other product types or create new ones globally.
               </p>
 
               {attachedComponents.length === 0 ? (
@@ -1842,7 +1842,7 @@ export default function ProductTypeManager() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm space-y-6">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">Define Component-Schedule Lead Times</h3>
+                <h3 className="font-bold text-gray-900 text-lg">Procurement Lead Times of Each Schedules</h3>
                 <p className="text-xs text-gray-500 mt-1">
                   Specify the delivery lead time (in days) and the anchor milestone from which the countdown calculates.
                 </p>
@@ -2107,7 +2107,7 @@ export default function ProductTypeManager() {
             </p>
             <ol className="list-decimal list-inside text-sm text-gray-800 mt-2 space-y-1">
               <li>Create a new product type by clicking the <span className="font-bold">+ New Product Type</span> button. Newly created product types are initially <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800 border border-red-200">INVALID</span>.</li>
-              <li>Furnish the details (schedule, components) by clicking the <span className="font-bold">Manage Config</span> button.</li>
+              <li>Furnish the details (Schedules & Milestones, BOM, Procurement Lead Times) by clicking the <span className="font-bold">Manage Config</span> button.</li>
               <li>Only product types that are <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">SUB-VALID</span> and <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">VALID</span> can be registered under a project.</li>
             </ol>
             <button
@@ -2255,7 +2255,7 @@ export default function ProductTypeManager() {
                     <span className="text-sm font-bold text-gray-800">{pt.schedule_count}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-gray-400 block mb-0.5">Components</span>
+                    <span className="text-[10px] uppercase text-gray-400 block mb-0.5">Components (BOM)</span>
                     <span className="text-sm font-bold text-gray-800">{pt.component_count}</span>
                   </div>
                 </div>
@@ -2362,23 +2362,25 @@ export default function ProductTypeManager() {
             </div>
 
             <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
-              <p>
-                Every product type in Pumpkinzzz maintains a validity status that governs whether it can be used for registering new project orders:
-              </p>
 
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
                 <strong className="block text-red-950 mb-1">🔴 INVALID (Default for new records)</strong>
-                A product type is invalid when it has no attached components, no schedules, or lacks component lead-time configurations. Invalid product types <strong>cannot</strong> be used for new projects.
+                <p>The product type has no schedules, no BOM, or no procurement lead times.</p>
+          
+                <p>Invalid product types <strong>cannot</strong> be registered under new projects.</p>
               </div>
 
               <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
                 <strong className="block text-amber-950 mb-1">🟡 SUB-VALID</strong>
-                A product type is sub-valid if it has at least one schedule fully associated with its complete component lead-time configuration. Sub-valid product types can be used for projects using those configured schedules.
+                <p>The product type has BOM, and at least one configured schedule associated with procurement lead time. </p>
+                <p>
+                  Sub-valid product types can be registered under new projects, but only with the configured schedules.</p>
               </div>
 
               <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
                 <strong className="block text-emerald-950 mb-1">🟢 VALID (Complete)</strong>
-                A product type is valid when it has &gt; 0 attached components, at least one schedule, and <strong>every</strong> schedule is fully associated with its variation of component lead times.
+                <p>The product type has BOM, and <strong>every</strong> schedule is associated with procurement lead times.</p>
+                <p>Valid product types can be registered under new projects, and all schedules will be available for selection.</p>
               </div>
             </div>
 

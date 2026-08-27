@@ -317,7 +317,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
       {/* Tracker Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Project Tracker & Milestones Monitor</h2>
+          <h2 className="text-xl font-bold text-gray-900">Monitor the Progress of Your Projects</h2>
           <p className="text-xs text-gray-500 mt-1">
             Monitor real-time project countdowns, record actual completion dates, and track component order deadlines.
           </p>
