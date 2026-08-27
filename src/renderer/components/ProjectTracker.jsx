@@ -433,19 +433,27 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                   <div className="flex items-center space-x-6">
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tag No.</span>
-                      <h3 className="text-lg font-bold text-gray-900">{p.tag_no}</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{p.tag_no}</h3>
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer</span>
                       <span className="text-sm font-semibold text-gray-800">{p.customer}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Product / Schedule</span>
-                      <span className="text-xs font-medium text-gray-600">{p.product_type_name} ({p.schedule_name})</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Product Type</span>
+                      <span className="text-xs font-medium text-gray-600">{p.product_type_name}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Description</span>
+                      <span className="text-xs font-medium text-gray-600">{p.description}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Contract Signed</span>
+                      <span className="text-xs font-medium text-gray-600">{formatDate(p.contract_signed_date, dateFormat)}</span>
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">ROS Deadline</span>
-                      <span className="text-xs font-bold text-indigo-600">{formatDate(p.ros_date, dateFormat)}</span>
+                      <span className="text-sm font-semibold text-indigo-600">{formatDate(p.ros_date, dateFormat)}</span>
                     </div>
                   </div>
 

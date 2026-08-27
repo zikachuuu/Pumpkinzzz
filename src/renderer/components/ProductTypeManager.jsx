@@ -2117,7 +2117,9 @@ export default function ProductTypeManager() {
               title="Learn more about Product Type status"
             >
               <span>Learn more about validity status here</span>
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold">i</span>
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
+                <Info className="w-3.5 h-3.5" />
+              </span>
             </button>
           </div>
         </div>
