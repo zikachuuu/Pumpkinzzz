@@ -1226,7 +1226,7 @@ export default function ProductTypeManager() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase">Deadline Happens (Days)</label>
+                      <label className="block text-xs font-bold text-gray-600 uppercase">Offset (Days)</label>
                       <input
                         type="number"
                         min="0"
@@ -1237,7 +1237,7 @@ export default function ProductTypeManager() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase">Timing</label>
+                      <label className="block text-xs font-bold text-gray-600 uppercase">Chronology</label>
                       <select
                         value={milestoneForm.direction}
                         onChange={(e) => setMilestoneForm({ ...milestoneForm, direction: e.target.value })}

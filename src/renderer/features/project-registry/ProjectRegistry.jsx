@@ -682,9 +682,6 @@ export default function ProjectRegistry({ onRedirectToTracker }) {
         <div>
           <h2 className="text-xl font-bold text-gray-900">Register New Projects</h2>
           <div className="mt-3">
-            <p className="text-sm text-gray-800">
-              Register new projects here.
-            </p>
             <p className="text-sm text-gray-800 mt-2">
               You can either upload a CSV file for batch registration or fill in the manual form below. Ensure that all required fields are completed and that Tag Nos are unique.
             </p>

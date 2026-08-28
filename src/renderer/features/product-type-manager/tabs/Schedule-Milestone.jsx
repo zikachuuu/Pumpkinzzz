@@ -3,6 +3,23 @@ import { Plus, Trash2, Calendar, Layers, Edit } from 'lucide-react';
 import MilestoneTimeline from './MilestoneTimeline'; // Adjust path if needed
 import { stringifyProductTypesTemplate } from '../../../utils/csv';
 
+/**
+ * This component renders the Schedules and Milestones tab for the Product Type Manager. 
+ * It allows users to view, add, edit, and delete schedules and milestones, as well as visualize milestone relationships in a tree or timeline format.
+ * 
+ * Props:
+ * - schedules: Array of schedule objects.
+ * - selectedSchedule: The currently selected schedule object.
+ * - milestones: Array of milestone objects associated with the selected schedule.
+ * - scheduleValidity: Object mapping schedule IDs to their validity status and reason.
+ * - handleSelectSchedule: Function to handle selecting a schedule.
+ * - handleDeleteSchedule: Function to handle deleting a schedule.
+ * - handleDeleteMilestone: Function to handle deleting a milestone.
+ * - setShowAddScheduleModal: Function to toggle the visibility of the Add Schedule modal.
+ * - handleOpenMilestoneModal: Function to open the Milestone modal for adding or editing milestones.
+ * 
+ */
+
 export default function SchedulesTab({
   schedules,
   selectedSchedule,
