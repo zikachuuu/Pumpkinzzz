@@ -78,9 +78,12 @@ export default function ProductTypeManager() {
 
   // Custom hooks for product type
   const {
-    searchTerm, setSearchTerm,
-    statusFilter, setStatusFilter,
-    sortBy, setSortBy,
+    searchTerm, 
+    setSearchTerm,
+    statusFilter, 
+    setStatusFilter,
+    sortBy, 
+    setSortBy,
     loading: isOverviewLoading,
     filteredPtList,
     loadProductTypes,
@@ -92,13 +95,26 @@ export default function ProductTypeManager() {
 
   // Custom hooks for product type configuration
   const {
-    selectedPt, activeTab, setActiveTab,
-    schedules, selectedSchedule, milestones,
-    scheduleValidity, attachedComponents, leadTimeSettings, setLeadTimeSettings,
+    selectedPt, 
+    activeTab, 
+    setActiveTab,
+    schedules, 
+    selectedSchedule, 
+    milestones,
+    scheduleValidity, 
+    attachedComponents, 
+    leadTimeSettings, 
+    setLeadTimeSettings,
     isDetailLoading,
     handleSelectProductType,
     handleSelectSchedule,
-    clearSelection
+    clearSelection,
+    handleAddSchedule,
+    handleDeleteSchedule,
+    handleSaveMilestone,
+    handleDeleteMilestone,
+    handleDetachComponent,
+    handleSaveLeadTimes
   } = useProductTypeConfig(triggerAlert);    
 
 
@@ -175,44 +191,6 @@ export default function ProductTypeManager() {
       .then(setSourceComponents)
       .catch(err => triggerAlert('error', `Failed to load product type components: ${err.message}`));
   }, [componentProductTypeId]);
-  // ==========================================
-  // SCHEDULES CRUD
-  // ==========================================
-
-  const handleAddSchedule = async (e) => {
-    e.preventDefault();
-    if (!scheduleNameInput.trim() || !selectedPt) return;
-
-    const exists = schedules.some(s => s.name.toLowerCase() === scheduleNameInput.trim().toLowerCase());
-    if (exists) {
-      triggerAlert('error', `A schedule named "${scheduleNameInput.trim()}" already exists for this product type.`);
-      return;
-    }
-
-    try {
-      await db.addSchedule(selectedPt.id, scheduleNameInput.trim());
-      setScheduleNameInput('');
-      setShowAddScheduleModal(false);
-      triggerAlert('success', 'Schedule and standard default milestones ("Contract Signed" and "ROS") created!');
-      refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to create schedule: ${err.message}`);
-    }
-  };
-
-  const handleDeleteSchedule = async (scheduleId, name) => {
-    if (!confirm(`Are you sure you want to delete schedule "${name}"? All custom milestones and component configurations in this schedule will be lost.`)) {
-      return;
-    }
-
-    try {
-      await db.deleteSchedule(scheduleId, selectedPt.id);
-      triggerAlert('success', 'Schedule deleted successfully.');
-      refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to delete schedule: ${err.message}`);
-    }
-  };
 
   // ==========================================
   // MILESTONES CRUD
@@ -245,71 +223,6 @@ export default function ProductTypeManager() {
     setShowMilestoneModal(true);
   };
 
-  const handleSaveMilestone = async (e) => {
-    e.preventDefault();
-    if (!milestoneForm.name.trim() || !selectedSchedule) return;
-
-    const isDefault = editingMilestone && (editingMilestone.name === 'Contract Signed' || editingMilestone.name === 'ROS');
-
-    // Name clash check
-    const clashing = milestones.some(m => 
-      m.name.toLowerCase() === milestoneForm.name.trim().toLowerCase() && 
-      (!editingMilestone || m.id !== editingMilestone.id)
-    );
-    if (clashing) {
-      triggerAlert('error', `A milestone named "${milestoneForm.name.trim()}" already exists in this schedule.`);
-      return;
-    }
-
-    // Anchor check
-    let finalAnchorId = milestoneForm.anchor_id ? parseInt(milestoneForm.anchor_id) : null;
-    if (isDefault) {
-      finalAnchorId = null; // Default milestones have no anchor
-    }
-
-    if (!isDefault && !finalAnchorId) {
-      triggerAlert('error', 'Custom milestones must be anchored to another milestone.');
-      return;
-    }
-
-    const rawDays = parseInt(milestoneForm.days) || 0;
-    const computedOffset = milestoneForm.direction === 'before' ? -rawDays : rawDays;
-
-    const payload = {
-      schedule_id: selectedSchedule.id,
-      name: milestoneForm.name.trim(),
-      anchor_id: finalAnchorId,
-      offset: isDefault ? 0 : computedOffset,
-      remark: milestoneForm.remark.trim()
-    };
-
-    if (editingMilestone) {
-      payload.id = editingMilestone.id;
-    }
-
-    try {
-      await db.saveMilestone(payload);
-      setShowMilestoneModal(false);
-      triggerAlert('success', `Milestone "${payload.name}" saved successfully.`);
-      refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to save milestone: ${err.message}`);
-    }
-  };
-
-  const handleDeleteMilestone = async (id) => {
-    if (!confirm('Are you sure you want to delete this milestone? Any dependent milestones will lose their anchor relationship.')) {
-      return;
-    }
-
-    try {
-      await db.deleteMilestonesBulk([id]);
-      triggerAlert('success', 'Milestone deleted.');
-      refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to delete milestone: ${err.message}`);
-    }
-  };
 
   const onAddSubmit = async (e) => {
     e.preventDefault(); // Stop the page from refreshing
@@ -328,6 +241,41 @@ export default function ProductTypeManager() {
       setPtModalError(err.message);
     }
   };
+
+  const onAddScheduleSubmit = async (e) => {
+    e.preventDefault(); // Stop the form from refreshing the page
+    if (!scheduleNameInput.trim()) return;
+
+    try {
+      // 1. Hand the raw string over to the hook logic
+      await handleAddSchedule(scheduleNameInput);
+      
+      // 2. If the hook succeeds, clean up the UI
+      setScheduleNameInput('');
+      setShowAddScheduleModal(false);
+    } catch (err) {
+      // 3. If the hook throws a validation error, show the alert
+      triggerAlert('error', err.message);
+    }
+  };
+
+  const onSaveMilestoneSubmit = async (e) => {
+    e.preventDefault(); // Stop the form from refreshing the page
+    if (!milestoneForm.name.trim()) return;
+
+    try {
+      // 1. Hand the form object and editing context over to the hook
+      await handleSaveMilestone(milestoneForm, editingMilestone);
+      
+      // 2. If the hook succeeds, clean up the UI
+      setShowMilestoneModal(false);
+      setEditingMilestone(null);
+    } catch (err) {
+      // 3. If the hook throws a validation error, show the alert
+      triggerAlert('error', err.message);
+    }
+  };
+
 
   // ==========================================
   // COMPONENTS & RELATIONSHIPS CRUD
@@ -375,20 +323,6 @@ export default function ProductTypeManager() {
     }
   };
 
-  const handleDetachComponent = async (compId, compName) => {
-    if (!confirm(`Are you sure you want to detach component "${compName}" from product type "${selectedPt.name}"? This deletes all its schedule lead-time configurations on this product.`)) {
-      return;
-    }
-
-    try {
-      await db.detachComponentFromProductType(compId, selectedPt.id);
-      triggerAlert('success', 'Component detached successfully.');
-      refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to detach component: ${err.message}`);
-    }
-  };
-
   // ==========================================
   // COMPONENT SCHEDULE LEAD TIMES SAVE
   // ==========================================
@@ -401,41 +335,6 @@ export default function ProductTypeManager() {
         [field]: value
       }
     }));
-  };
-
-  const handleSaveLeadTimes = async () => {
-    if (!selectedPt) return;
-    setLoading(true);
-    try {
-      // Gather all configurations
-      for (const s of schedules) {
-        const schedMilestones = await db.getMilestones(s.id);
-        const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id 
-                             || schedMilestones[0]?.id;
-
-        for (const c of attachedComponents) {
-          const key = `${c.id}-${s.id}`;
-          const config = leadTimeSettings[key];
-
-          const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
-          const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
-
-          if (anchorId) {
-            await db.saveComponentSchedule(s.id, c.id, anchorId, leadTime);
-          }
-        }
-      }
-      
-      // Update validity status of the product type
-      await db.updateProductTypeStatus(selectedPt.id);
-      await refreshScheduleValidity(schedules, attachedComponents);
-      triggerAlert('success', 'Component schedule lead times saved and status updated!');
-      await refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to save lead times: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSaveLeadTimesForSchedule = async (scheduleId) => {
@@ -1824,7 +1723,7 @@ export default function ProductTypeManager() {
         >
           <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6">
             <h3 className="font-bold text-lg text-gray-900 mb-4">Create New Schedule</h3>
-            <form onSubmit={handleAddSchedule} className="space-y-4">
+            <form onSubmit={onAddScheduleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-600 uppercase">Schedule Name</label>
                 <input
@@ -1877,7 +1776,7 @@ export default function ProductTypeManager() {
             <h3 className="font-bold text-lg text-gray-900 mb-4">
               {editingMilestone ? `Edit Milestone "${editingMilestone.name}"` : 'Add Custom Milestone'}
             </h3>
-            <form onSubmit={handleSaveMilestone} className="space-y-4">
+            <form onSubmit={onSaveMilestoneSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-600 uppercase">Milestone Name</label>
                 <input

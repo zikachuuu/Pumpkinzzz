@@ -10,19 +10,25 @@ import * as db from '../../../utils/db'; // Adjust path up to utils/
  * 
  * State Variables:
  * - selectedPt: The currently selected product type object.
- * - activeTab: The currently active tab in the UI ('schedules', 'milestones', 'components').
+ * - activeTab: The currently active tab in the detail view ('schedules', 'components', 'leadtimes').
  * - schedules: Array of schedule objects associated with the selected product type.
  * - selectedSchedule: The currently selected schedule object.
  * - milestones: Array of milestone objects associated with the selected schedule.
- * - scheduleValidity: Object mapping schedule IDs to their validity status (true/false).
- * - attachedComponents: Array of component objects attached to the selected product type.
- * - leadTimeSettings: Object mapping component-schedule pairs to their lead time settings.
- * - isDetailLoading: Boolean indicating whether detailed data is currently being fetched.
+ * - scheduleValidity: Object mapping schedule IDs to their validity status.
+ * - attachedComponents: Array of components attached to the selected product type.
+ * - leadTimeSettings: Object mapping component-schedule pairs to their lead time configurations.
+ * - isDetailLoading: Boolean indicating whether detail data is currently being fetched.
  * 
  * Functions:
- * - handleSelectProductType: Selects a product type and loads its associated schedules, components, and milestones.
- * - handleSelectSchedule: Selects a schedule and loads its associated milestones and lead time settings.
- * - clearSelection: Clears the current selection and resets related state variables.
+ * - handleSelectProductType: Selects a product type and loads its associated data.
+ * - handleSelectSchedule: Select a schedule and loads its associated milestones and lead times.
+ * - clearSelection: Clears the selected product type and resets related state.
+ * - handleAddSchedule: Adds a new schedule to the selected product type.
+ * - handleDeleteSchedule: Deletes a specific schedule from the selected product type.
+ * - handleSaveMilestone: Saves or updates a milestone for the selected schedule.
+ * - handleDeleteMilestone: Deletes a specific milestone from the selected schedule.
+ * - handleDetachComponent: Detaches a component from the selected product type.
+ * - handleSaveLeadTimes: Saves lead time configurations for components across schedules.
  * 
  */
 
@@ -96,13 +102,120 @@ export function useProductTypeConfig(triggerAlert) {
     setAttachedComponents([]);
   };
 
+  // --- SCHEDULES CRUD ---
+  const handleAddSchedule = async (scheduleNameInput) => {
+    if (!selectedPt) return;
+    const exists = schedules.some(s => s.name.toLowerCase() === scheduleNameInput.trim().toLowerCase());
+    if (exists) throw new Error(`A schedule named "${scheduleNameInput.trim()}" already exists.`);
+    
+    await db.addSchedule(selectedPt.id, scheduleNameInput.trim());
+    triggerAlert('success', 'Schedule and standard default milestones created!');
+    // Refresh the view
+    await handleSelectProductType(selectedPt); 
+  };
+
+  const handleDeleteSchedule = async (scheduleId, name) => {
+    if (!confirm(`Are you sure you want to delete schedule "${name}"?`)) return false;
+    
+    await db.deleteSchedule(scheduleId, selectedPt.id);
+    triggerAlert('success', 'Schedule deleted successfully.');
+    await handleSelectProductType(selectedPt);
+    return true;
+  };
+
+  // --- MILESTONES CRUD ---
+  const handleSaveMilestone = async (milestoneForm, editingMilestone) => {
+    if (!selectedSchedule) return;
+    const isDefault = editingMilestone && (editingMilestone.name === 'Contract Signed' || editingMilestone.name === 'ROS');
+    
+    const clashing = milestones.some(m => m.name.toLowerCase() === milestoneForm.name.trim().toLowerCase() && (!editingMilestone || m.id !== editingMilestone.id));
+    if (clashing) throw new Error(`A milestone named "${milestoneForm.name.trim()}" already exists.`);
+
+    let finalAnchorId = milestoneForm.anchor_id ? parseInt(milestoneForm.anchor_id) : null;
+    if (!isDefault && !finalAnchorId) throw new Error('Custom milestones must be anchored.');
+
+    const computedOffset = milestoneForm.direction === 'before' ? -Math.abs(milestoneForm.days) : Math.abs(milestoneForm.days);
+    
+    const payload = {
+      schedule_id: selectedSchedule.id,
+      name: milestoneForm.name.trim(),
+      anchor_id: isDefault ? null : finalAnchorId,
+      offset: isDefault ? 0 : computedOffset,
+      remark: milestoneForm.remark.trim(),
+      ...(editingMilestone && { id: editingMilestone.id })
+    };
+
+    await db.saveMilestone(payload);
+    triggerAlert('success', `Milestone "${payload.name}" saved successfully.`);
+    await handleSelectSchedule(selectedSchedule, selectedPt.id); // Refresh milestones
+  };
+
+  const handleDeleteMilestone = async (id) => {
+    if (!confirm('Are you sure you want to delete this milestone?')) return false;
+    await db.deleteMilestonesBulk([id]);
+    triggerAlert('success', 'Milestone deleted.');
+    await handleSelectSchedule(selectedSchedule, selectedPt.id);
+    return true;
+  };
+
+  // --- COMPONENTS CRUD ---
+  const handleDetachComponent = async (compId, compName) => {
+    if (!confirm(`Are you sure you want to detach component "${compName}"?`)) return false;
+    await db.detachComponentFromProductType(compId, selectedPt.id);
+    triggerAlert('success', 'Component detached successfully.');
+    await handleSelectProductType(selectedPt);
+    return true;
+  };
+
+  const handleSaveLeadTimes = async () => {
+    if (!selectedPt) return;
+    setIsDetailLoading(true);
+    try {
+      for (const s of schedules) {
+        const schedMilestones = await db.getMilestones(s.id);
+        const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id || schedMilestones[0]?.id;
+
+        for (const c of attachedComponents) {
+          const key = `${c.id}-${s.id}`;
+          const config = leadTimeSettings[key];
+          const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
+          const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
+
+          if (anchorId) {
+            await db.saveComponentSchedule(s.id, c.id, anchorId, leadTime);
+          }
+        }
+      }
+      await db.updateProductTypeStatus(selectedPt.id);
+      triggerAlert('success', 'Component schedule lead times saved and status updated!');
+      await handleSelectProductType(selectedPt);
+    } catch (err) {
+      triggerAlert('error', `Failed to save lead times: ${err.message}`);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
   return {
-    selectedPt, activeTab, setActiveTab,
-    schedules, selectedSchedule, milestones,
-    scheduleValidity, attachedComponents, leadTimeSettings, setLeadTimeSettings,
+    selectedPt, 
+    activeTab, 
+    setActiveTab,
+    schedules, 
+    selectedSchedule, 
+    milestones,
+    scheduleValidity, 
+    attachedComponents, 
+    leadTimeSettings, 
+    setLeadTimeSettings,
     isDetailLoading,
     handleSelectProductType,
     handleSelectSchedule,
-    clearSelection
+    clearSelection,
+    handleAddSchedule,
+    handleDeleteSchedule,
+    handleSaveMilestone,
+    handleDeleteMilestone,
+    handleDetachComponent,
+    handleSaveLeadTimes
   };
 }
