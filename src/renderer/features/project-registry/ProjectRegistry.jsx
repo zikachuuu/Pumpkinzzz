@@ -7,13 +7,13 @@ import * as db from '../../utils/db';
 import { parseCSV, stringifyCSV } from '../../utils/csv';
 import Alert from '../../components/ui/Alert.jsx';
 
-export default function ProductRegistry({ onRedirectToTracker }) {
+export default function ProjectRegistry({ onRedirectToTracker }) {
   // Global reference states
   const [productTypes, setProductTypes] = useState([]);
   const [existingProjects, setExistingProjects] = useState([]);
   const [allSchedules, setSchedules] = useState({}); // ptId -> schedules array
   const [scheduleValidationMap, setScheduleValidationMap] = useState({}); // scheduleId -> boolean (is valid)
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
   // Manual Form States

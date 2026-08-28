@@ -18,13 +18,13 @@ import {
   stringifyFullProductTypeBackup
 } from '../../utils/csv';
 import Alert from '../../components/ui/Alert';
+import Modal from '../../components/ui/Modal';
+import { useProductType } from './hooks/useProductType';
+import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 
 export default function ProductTypeManager() {
   // State for Product Types Overview List
   const [productTypes, setProductTypes] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('name');
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
 
@@ -38,15 +38,7 @@ export default function ProductTypeManager() {
   const [importReview, setImportReview] = useState(null);
   const [showBatchCsvOptions, setShowBatchCsvOptions] = useState(false);
 
-  // Selected Product Type detail state
-  const [selectedPt, setSelectedPt] = useState(null);
-  const [activeTab, setActiveTab] = useState('schedules'); // schedules, components, leadtimes
-
   // Detail View: Schedules & Milestones State
-  const [schedules, setSchedules] = useState([]);
-  const [selectedSchedule, setSelectedSchedule] = useState(null);
-  const [milestones, setMilestones] = useState([]);
-  const [scheduleValidity, setScheduleValidity] = useState({});
   const [scheduleSubView, setScheduleSubView] = useState('tree'); // 'tree', 'timeline', 'records'
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   const [scheduleNameInput, setScheduleNameInput] = useState('');
@@ -63,7 +55,6 @@ export default function ProductTypeManager() {
   });
 
   // Components Management State
-  const [attachedComponents, setAttachedComponents] = useState([]);
   const [allGlobalComponents, setAllGlobalComponents] = useState([]);
   const [componentProductTypeSearch, setComponentProductTypeSearch] = useState('');
   const [componentProductTypeId, setComponentProductTypeId] = useState('');
@@ -72,9 +63,6 @@ export default function ProductTypeManager() {
   const [showAddComponentModal, setShowAddComponentModal] = useState(false);
   const [componentForm, setComponentForm] = useState({ name: '', remarks: '' });
   const [selectedGlobalComponentId, setSelectedGlobalComponentId] = useState('');
-
-  // Component Schedules Lead Times State
-  const [leadTimeSettings, setLeadTimeSettings] = useState({}); // key: compId-scheduleId -> { anchorId, leadTime }
 
   // Initial Data Load
   useEffect(() => {
@@ -88,67 +76,31 @@ export default function ProductTypeManager() {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const loadProductTypes = async () => {
-    setLoading(true);
-    try {
-      const data = await db.getProductTypes();
-      setProductTypes(data);
-    } catch (err) {
-      triggerAlert('error', `Failed to load product types: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Custom hooks for product type
+  const {
+    searchTerm, setSearchTerm,
+    statusFilter, setStatusFilter,
+    sortBy, setSortBy,
+    loading: isOverviewLoading,
+    filteredPtList,
+    loadProductTypes,
+    handleAddProductType,
+    handleRenameProductType,
+    handleDeleteProductType,
+    handleDeleteAllProductTypes
+  } = useProductType(triggerAlert);
 
-  // Select Product Type Detail Handler
-  const handleSelectProductType = async (pt) => {
-    setSelectedPt(pt);
-    setActiveTab('schedules');
-    setLoading(true);
-    try {
-      // Load schedules and components
-      const scheds = await db.getSchedules(pt.id);
-      setSchedules(scheds);
-      
-      const attached = await db.getAttachedComponents(pt.id);
-      setAttachedComponents(attached);
-      setComponentProductTypeId(String(pt.id));
-      await refreshScheduleValidity(scheds, attached);
+  // Custom hooks for product type configuration
+  const {
+    selectedPt, activeTab, setActiveTab,
+    schedules, selectedSchedule, milestones,
+    scheduleValidity, attachedComponents, leadTimeSettings, setLeadTimeSettings,
+    isDetailLoading,
+    handleSelectProductType,
+    handleSelectSchedule,
+    clearSelection
+  } = useProductTypeConfig(triggerAlert);    
 
-      // Select first schedule by default
-      if (scheds.length > 0) {
-        handleSelectSchedule(scheds[0], pt.id);
-      } else {
-        setSelectedSchedule(null);
-        setMilestones([]);
-      }
-    } catch (err) {
-      triggerAlert('error', `Error loading details: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectSchedule = async (schedule, ptId = selectedPt.id) => {
-    setSelectedSchedule(schedule);
-    try {
-      const milestonesData = await db.getMilestones(schedule.id);
-      setMilestones(milestonesData);
-      
-      // Load lead times for this schedule
-      const componentScheds = await db.getComponentSchedules(schedule.id);
-      const settingsUpdate = { ...leadTimeSettings };
-      componentScheds.forEach(cs => {
-        settingsUpdate[`${cs.component_id}-${schedule.id}`] = {
-          anchor_id: cs.anchor_milestone_id,
-          lead_time: cs.lead_time
-        };
-      });
-      setLeadTimeSettings(settingsUpdate);
-    } catch (err) {
-      triggerAlert('error', `Failed to load milestones/lead times: ${err.message}`);
-    }
-  };
 
   // Refresh active details
   const refreshPtDetails = async () => {
@@ -188,76 +140,6 @@ export default function ProductTypeManager() {
   // ==========================================
   // PRODUCT TYPE CRUD
   // ==========================================
-
-  const handleAddProductType = async (e) => {
-    e.preventDefault();
-    if (!ptNameInput.trim()) return;
-    setPtModalError('');
-
-    const exists = productTypes.some(pt => pt.name.toLowerCase() === ptNameInput.trim().toLowerCase());
-    if (exists) {
-      setPtModalError('Product type already exists');
-      return;
-    }
-
-    try {
-      await db.addProductType(ptNameInput.trim());
-      setPtNameInput('');
-      setShowAddPtModal(false);
-      setPtModalError('');
-      triggerAlert('success', 'Product Type created as [INVALID]. Please configure schedules, milestones, and component lead times before use.');
-      loadProductTypes();
-    } catch (err) {
-      setPtModalError(err.message);
-    }
-  };
-
-  const handleRenameProductType = async (e) => {
-    e.preventDefault();
-    if (!ptRenameInput.trim() || !ptRenameId) return;
-
-    try {
-      await db.renameProductType(ptRenameId, ptRenameInput.trim());
-      setPtRenameId(null);
-      setPtRenameInput('');
-      triggerAlert('success', 'Product Type renamed successfully!');
-      loadProductTypes();
-    } catch (err) {
-      triggerAlert('error', `Failed to rename Product Type: ${err.message}`);
-    }
-  };
-
-  const handleDeleteProductType = async (id, name) => {
-    if (!confirm(`Are you sure you want to delete Product Type "${name}"? This will delete all its schedules, milestones, and project records over cascade.`)) {
-      return;
-    }
-
-    try {
-      await db.deleteProductType(id);
-      triggerAlert('success', 'Product Type deleted successfully.');
-      loadProductTypes();
-      if (selectedPt && selectedPt.id === id) {
-        setSelectedPt(null);
-      }
-    } catch (err) {
-      triggerAlert('error', `Failed to delete Product Type: ${err.message}`);
-    }
-  };
-
-  const handleDeleteAllProductTypes = async () => {
-    if (!confirm('Delete all product types? This will remove all associated schedules and project links.')) return;
-    if (!confirm('This cannot be undone. Continue deleting all product types?')) return;
-
-    try {
-      await db.deleteAllProductTypes();
-      setSelectedPt(null);
-      triggerAlert('success', 'All product types were deleted successfully.');
-      await loadProductTypes();
-    } catch (err) {
-      triggerAlert('error', `Failed to delete all product types: ${err.message}`);
-    }
-  };
-
   const loadGlobalComponents = async () => {
     try {
       const data = await db.getComponents();
@@ -426,6 +308,24 @@ export default function ProductTypeManager() {
       refreshPtDetails();
     } catch (err) {
       triggerAlert('error', `Failed to delete milestone: ${err.message}`);
+    }
+  };
+
+  const onAddSubmit = async (e) => {
+    e.preventDefault(); // Stop the page from refreshing
+    if (!ptNameInput.trim()) return;
+    
+    try {
+      // 1. Hand the data off to your custom hook
+      await handleAddProductType(ptNameInput.trim());
+      
+      // 2. If it succeeds, update the UI (close modal, clear inputs)
+      setShowAddPtModal(false);
+      setPtNameInput('');
+      setPtModalError('');
+    } catch (err) {
+      // 3. If the hook throws an error (e.g., "name already exists"), show it in the UI
+      setPtModalError(err.message);
     }
   };
 
@@ -1155,26 +1055,6 @@ export default function ProductTypeManager() {
   // ==========================================
   // FILTERS & SORTING ON PRODUCT TYPES
   // ==========================================
-
-  const filteredPtList = productTypes
-    .filter(pt => {
-      const matchSearch = pt.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = statusFilter === 'all' || pt.status === statusFilter;
-      return matchSearch && matchStatus;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'name') {
-        return a.name.localeCompare(b.name);
-      } else if (sortBy === 'status') {
-        return a.status.localeCompare(b.status);
-      } else if (sortBy === 'schedules') {
-        return b.schedule_count - a.schedule_count;
-      } else if (sortBy === 'components') {
-        return b.component_count - a.component_count;
-      }
-      return 0;
-    });
-
   const handleDownloadSchedTemplate = async () => {
     try {
       const csvContent = stringifySchedulesTemplate();
@@ -1388,7 +1268,7 @@ export default function ProductTypeManager() {
           <div className="flex items-center space-x-4">
             <button
               onClick={() => {
-                setSelectedPt(null);
+                clearSelection();
                 loadProductTypes();
               }}
               className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -1932,146 +1812,166 @@ export default function ProductTypeManager() {
         )}
 
         {/* MODAL: ADD SCHEDULE */}
-        {showAddScheduleModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6">
-              <h3 className="font-bold text-lg text-gray-900 mb-4">Create New Schedule</h3>
-              <form onSubmit={handleAddSchedule} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase">Schedule Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={scheduleNameInput}
-                    onChange={(e) => setScheduleNameInput(e.target.value)}
-                    placeholder="e.g. Normal Build, Fast-track, Rush"
-                    className="mt-1.5 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <p className="text-[10px] text-gray-500 mt-2">
-                    Creating a schedule automatically spawns 'Contract Signed' and 'ROS' as anchor boundary roots.
-                  </p>
-                </div>
-                <div className="flex justify-end space-x-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddScheduleModal(false);
-                      setScheduleNameInput('');
-                    }}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition"
-                  >
-                    Create Schedule
-                  </button>
-                </div>
-              </form>
-            </div>
+        <Modal
+          isOpen={showAddScheduleModal}
+          onRequestClose={() => {
+            setShowAddScheduleModal(false);
+            setScheduleNameInput('');
+          }}
+          contentLabel="Create New Schedule"
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          overlayClassName="fixed inset-0 bg-black/50"
+        >
+          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6">
+            <h3 className="font-bold text-lg text-gray-900 mb-4">Create New Schedule</h3>
+            <form onSubmit={handleAddSchedule} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase">Schedule Name</label>
+                <input
+                  type="text"
+                  required
+                  value={scheduleNameInput}
+                  onChange={(e) => setScheduleNameInput(e.target.value)}
+                  placeholder ="e.g. Normal Build, Fast-track, Rush"
+                  className="mt-1.5 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-gray-500 mt-2">
+                  Creating a schedule automatically spawns 'Contract Signed' and 'ROS' as anchor boundary roots.
+                </p>
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddScheduleModal(false);
+                    setScheduleNameInput('');
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition"
+                >
+                  Create Schedule
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </Modal>
 
         {/* MODAL: MILESTONE (ADD/EDIT) */}
-        {showMilestoneModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6">
-              <h3 className="font-bold text-lg text-gray-900 mb-4">
-                {editingMilestone ? `Edit Milestone "${editingMilestone.name}"` : 'Add Custom Milestone'}
-              </h3>
-              <form onSubmit={handleSaveMilestone} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase">Milestone Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={milestoneForm.name}
-                    onChange={(e) => setMilestoneForm({ ...milestoneForm, name: e.target.value })}
-                    placeholder="e.g. Production Start, Material Delivery"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
+        <Modal  
+          isOpen={showMilestoneModal}
+          onRequestClose={() => {
+            setShowMilestoneModal(false);
+            setEditingMilestone(null);
+            setMilestoneForm({ name: '', anchor_id: '', days: 0, direction: 'after', remark: '' });
+          }}
+          contentLabel={editingMilestone ? `Edit Milestone "${editingMilestone.name}"` : 'Add Custom Milestone'}
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          overlayClassName="fixed inset-0 bg-black/50"
+        >
+          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6">
+            <h3 className="font-bold text-lg text-gray-900 mb-4">
+              {editingMilestone ? `Edit Milestone "${editingMilestone.name}"` : 'Add Custom Milestone'}
+            </h3>
+            <form onSubmit={handleSaveMilestone} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase">Milestone Name</label>
+                <input
+                  type="text"
+                  required
+                  value={milestoneForm.name}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, name: e.target.value })}
+                  placeholder="e.g. Production Start, Material Delivery"
+                  className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
 
-                {/* Hide Anchor/Offset editing for Default milestones */}
-                {(!editingMilestone || (editingMilestone.name.toLowerCase() !== 'contract signed' && editingMilestone.name.toLowerCase() !== 'ros')) && (
-                  <>
+              {/* Hide Anchor/Offset editing for Default milestones */}
+              {(!editingMilestone || (editingMilestone.name.toLowerCase() !== 'contract signed' && editingMilestone.name.toLowerCase() !== 'ros')) && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase">Anchor / Basis Milestone</label>
+                    <select
+                      value={milestoneForm.anchor_id}
+                      onChange={(e) => setMilestoneForm({ ...milestoneForm, anchor_id: e.target.value })}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="">-- Choose Anchor --</option>
+                      {milestones
+                        .filter(m => !editingMilestone || m.id !== editingMilestone.id)
+                        .map(m => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase">Anchor / Basis Milestone</label>
+                      <label className="block text-xs font-bold text-gray-600 uppercase">Deadline Happens (Days)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={milestoneForm.days}
+                        onChange={(e) => setMilestoneForm({ ...milestoneForm, days: e.target.value })}
+                        placeholder="e.g. 14"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase">Timing</label>
                       <select
-                        value={milestoneForm.anchor_id}
-                        onChange={(e) => setMilestoneForm({ ...milestoneForm, anchor_id: e.target.value })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none"
+                        value={milestoneForm.direction}
+                        onChange={(e) => setMilestoneForm({ ...milestoneForm, direction: e.target.value })}
+                        className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                       >
-                        <option value="">-- Choose Anchor --</option>
-                        {milestones
-                          .filter(m => !editingMilestone || m.id !== editingMilestone.id)
-                          .map(m => (
-                            <option key={m.id} value={m.id}>
-                              {m.name}
-                            </option>
-                          ))}
+                        <option value="after">Days After Anchor</option>
+                        <option value="before">Days Before Anchor</option>
                       </select>
                     </div>
+                  </div>
+                </>
+              )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 uppercase">Deadline Happens (Days)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={milestoneForm.days}
-                          onChange={(e) => setMilestoneForm({ ...milestoneForm, days: e.target.value })}
-                          placeholder="e.g. 14"
-                          className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 uppercase">Timing</label>
-                        <select
-                          value={milestoneForm.direction}
-                          onChange={(e) => setMilestoneForm({ ...milestoneForm, direction: e.target.value })}
-                          className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none bg-white"
-                        >
-                          <option value="after">Days After Anchor</option>
-                          <option value="before">Days Before Anchor</option>
-                        </select>
-                      </div>
-                    </div>
-                  </>
-                )}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase">Remarks / Description</label>
+                <textarea
+                  rows="2"
+                  value={milestoneForm.remark}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, remark: e.target.value })}
+                  placeholder="Provide description or details"
+                  className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase">Remarks / Description</label>
-                  <textarea
-                    rows="2"
-                    value={milestoneForm.remark}
-                    onChange={(e) => setMilestoneForm({ ...milestoneForm, remark: e.target.value })}
-                    placeholder="Provide description or details"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowMilestoneModal(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition"
-                  >
-                    Save Milestone
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMilestoneModal(false);
+                    setEditingMilestone(null);
+                    setMilestoneForm({ name: '', anchor_id: '', days: 0, direction: 'after', remark: '' });
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition"
+                >
+                  Save Milestone
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </Modal>
+
       </div>
     );
   }
@@ -2179,7 +2079,7 @@ export default function ProductTypeManager() {
       </div>
 
       {/* Main product types listing */}
-      {loading ? (
+      {isOverviewLoading ? (
         <div className="p-16 text-center text-gray-500 bg-white rounded-lg border border-gray-200 shadow-sm flex items-center justify-center space-x-3">
           <RefreshCw className="w-5 h-5 animate-spin text-indigo-500" />
           <span className="font-semibold text-sm">Loading Product Types...</span>
@@ -2279,109 +2179,106 @@ export default function ProductTypeManager() {
         </div>
       )}
 
+
       {/* MODAL: ADD PRODUCT TYPE */}
-      {showAddPtModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-md w-full p-6 space-y-4">
-            <h3 className="font-bold text-lg text-gray-900">Create New Product Type</h3>
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed">
-              <strong>Notice:</strong> Newly created product types are initialized as <strong>[INVALID]</strong>. You must promptly configure schedules, milestones, and component lead times before this product type can be selected for projects.
-            </p>
+      <Modal 
+        isOpen={showAddPtModal} 
+        title="Create New Product Type"
+        onClose={() => {
+          setShowAddPtModal(false);
+          setPtNameInput('');
+          setPtModalError('');
+        }}
+      >
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed mb-4">
+          <strong>Notice:</strong> Newly created product types are initialized as <strong>[INVALID]</strong>. You must promptly configure schedules, milestones, and component lead times before this product type can be selected for projects.
+        </p>
 
-            {ptModalError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs font-bold flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                <span>{ptModalError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleAddProductType} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-600 uppercase">Product Type Name</label>
-                <input
-                  type="text"
-                  required
-                  value={ptNameInput}
-                  onChange={(e) => {
-                    setPtNameInput(e.target.value);
-                    if (ptModalError) setPtModalError('');
-                  }}
-                  placeholder="e.g. Water Chiller, Air Chiller"
-                  className="mt-1.5 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="flex justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddPtModal(false);
-                    setPtNameInput('');
-                    setPtModalError('');
-                  }}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition"
-                >
-                  Create Product Type
-                </button>
-              </div>
-            </form>
+        {ptModalError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs font-bold flex items-center space-x-2 mb-4">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <span>{ptModalError}</span>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* 👇 CHANGE IS HERE: Point onSubmit to onAddSubmit 👇 */}
+        <form onSubmit={onAddSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase">Product Type Name</label>
+            <input
+              type="text"
+              required
+              value={ptNameInput}
+              onChange={(e) => {
+                setPtNameInput(e.target.value);
+                if (ptModalError) setPtModalError('');
+              }}
+              placeholder="e.g. Water Chiller, Air Chiller"
+              className="mt-1.5 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="flex justify-end space-x-2 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddPtModal(false);
+                setPtNameInput('');
+                setPtModalError('');
+              }}
+              className="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition"
+            >
+              Create Product Type
+            </button>
+          </div>
+        </form>
+      </Modal>
+
 
       {/* MODAL: VALIDITY STATUS GUIDE */}
-      {showValidityModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-100 max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-bold text-lg text-gray-900">Product Type Validity Status Guide</h3>
-              <button
-                onClick={() => setShowValidityModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Modal
+        isOpen={showValidityModal}
+        title="Product Type Validity Status Guide"
+        onClose={() => setShowValidityModal(false)}
+      >
+        <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
 
-            <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
+          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
+            <strong className="block text-red-950 mb-1">🔴 INVALID (Default for new records)</strong>
+            <p>The product type has no schedules, no BOM, or no procurement lead times.</p>
+      
+            <p>Invalid product types <strong>cannot</strong> be registered under new projects.</p>
+          </div>
 
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
-                <strong className="block text-red-950 mb-1">🔴 INVALID (Default for new records)</strong>
-                <p>The product type has no schedules, no BOM, or no procurement lead times.</p>
-          
-                <p>Invalid product types <strong>cannot</strong> be registered under new projects.</p>
-              </div>
+          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+            <strong className="block text-amber-950 mb-1">🟡 SUB-VALID</strong>
+            <p>The product type has BOM, and at least one configured schedule associated with procurement lead time. </p>
+            <p>
+              Sub-valid product types can be registered under new projects, but only with the configured schedules.</p>
+          </div>
 
-              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
-                <strong className="block text-amber-950 mb-1">🟡 SUB-VALID</strong>
-                <p>The product type has BOM, and at least one configured schedule associated with procurement lead time. </p>
-                <p>
-                  Sub-valid product types can be registered under new projects, but only with the configured schedules.</p>
-              </div>
-
-              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
-                <strong className="block text-emerald-950 mb-1">🟢 VALID (Complete)</strong>
-                <p>The product type has BOM, and <strong>every</strong> schedule is associated with procurement lead times.</p>
-                <p>Valid product types can be registered under new projects, and all schedules will be available for selection.</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setShowValidityModal(false)}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
-              >
-                Got It
-              </button>
-            </div>
+          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
+            <strong className="block text-emerald-950 mb-1">🟢 VALID (Complete)</strong>
+            <p>The product type has BOM, and <strong>every</strong> schedule is associated with procurement lead times.</p>
+            <p>Valid product types can be registered under new projects, and all schedules will be available for selection.</p>
           </div>
         </div>
-      )}
+
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={() => setShowValidityModal(false)}
+            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+          >
+            Got It
+          </button>
+        </div>
+      </Modal>
+
     </div>
   );
 }

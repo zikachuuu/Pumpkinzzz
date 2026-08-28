@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Dashboard from './features/dashboard/Dashboard.jsx';
 import ProductTypeManager from './features/product-type-manager/ProductTypeManager.jsx';
-import ProductRegistry from './features/project-registry/ProjectRegistry.jsx';
+import ProjectRegistry from './features/project-registry/ProjectRegistry.jsx';
 import ProjectTracker from './features/project-tracker/ProjectTracker.jsx';
 import Settings from './features/setting/Settings.jsx';
 import { DATE_FORMATS, getStoredDateFormat, setStoredDateFormat } from './utils/date';
@@ -38,7 +38,7 @@ export default function App() {
               activeTab === 'productTypes' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
             }`}
           >
-            Product Type Registry
+            Product Type Manager
           </button>
           <button
             onClick={() => setActiveTab('registry')}
@@ -102,7 +102,7 @@ export default function App() {
           )}
 
           {activeTab === 'registry' && (
-            <ProductRegistry onRedirectToTracker={() => setActiveTab('tracker')} dateFormat={dateFormat} />
+            <ProjectRegistry onRedirectToTracker={() => setActiveTab('tracker')} dateFormat={dateFormat} />
           )}
 
           {activeTab === 'tracker' && (
