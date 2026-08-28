@@ -21,33 +21,35 @@ import Alert from '../../components/ui/Alert';
 import Modal from '../../components/ui/Modal';
 import { useProductType } from './hooks/useProductType';
 import { useProductTypeConfig } from './hooks/useProductTypeConfig';
+
 import ScheduleMilestoneTab from './tabs/Schedule-Milestone';
+import BomTab from './tabs/BOM';
+import LeadTimesTab from './tabs/LeadTime';
 
 export default function ProductTypeManager() {
   // State for Product Types Overview List
-  const [productTypes, setProductTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [alert, setAlert] = useState(null);
+  const [loading          , setLoading] = useState(true);
+  const [alert            , setAlert] = useState(null);
 
   // Modal / Dialog States
-  const [showAddPtModal, setShowAddPtModal] = useState(false);
-  const [ptNameInput, setPtNameInput] = useState('');
-  const [ptModalError, setPtModalError] = useState('');
-  const [showValidityModal, setShowValidityModal] = useState(false);
-  const [ptRenameId, setPtRenameId] = useState(null);
-  const [ptRenameInput, setPtRenameInput] = useState('');
-  const [importReview, setImportReview] = useState(null);
+  const [showAddPtModal     , setShowAddPtModal] = useState(false);
+  const [ptNameInput        , setPtNameInput] = useState('');
+  const [ptModalError       , setPtModalError] = useState('');
+  const [showValidityModal  , setShowValidityModal] = useState(false);
+  const [ptRenameId         , setPtRenameId] = useState(null);
+  const [ptRenameInput      , setPtRenameInput] = useState('');
+  const [importReview       , setImportReview] = useState(null);
   const [showBatchCsvOptions, setShowBatchCsvOptions] = useState(false);
 
   // Detail View: Schedules & Milestones State
-  const [scheduleSubView, setScheduleSubView] = useState('tree'); // 'tree', 'timeline', 'records'
-  const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
-  const [scheduleNameInput, setScheduleNameInput] = useState('');
+  const [scheduleSubView      , setScheduleSubView] = useState('tree'); // 'tree', 'timeline', 'records'
+  const [showAddScheduleModal , setShowAddScheduleModal] = useState(false);
+  const [scheduleNameInput    , setScheduleNameInput] = useState('');
 
   // Milestone edit/add state
-  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
-  const [editingMilestone, setEditingMilestone] = useState(null); // null if adding
-  const [milestoneForm, setMilestoneForm] = useState({
+  const [showMilestoneModal , setShowMilestoneModal] = useState(false);
+  const [editingMilestone   , setEditingMilestone] = useState(null); // null if adding
+  const [milestoneForm      , setMilestoneForm] = useState({
     name: '',
     anchor_id: '',
     days: 0,
@@ -79,6 +81,8 @@ export default function ProductTypeManager() {
 
   // Custom hooks for product type
   const {
+    productTypes,
+    setProductTypes,
     searchTerm, 
     setSearchTerm,
     statusFilter, 
@@ -115,44 +119,12 @@ export default function ProductTypeManager() {
     handleSaveMilestone,
     handleDeleteMilestone,
     handleDetachComponent,
-    handleSaveLeadTimes
+    handleSaveLeadTimes,
+    refreshScheduleValidity,
+    getScheduleValidity,
+    handleLeadTimeChange
   } = useProductTypeConfig(triggerAlert);    
 
-
-  // Refresh active details
-  const refreshPtDetails = async () => {
-    if (!selectedPt) return;
-    try {
-      const updatedPts = await db.getProductTypes();
-      const currentPt = updatedPts.find(p => p.id === selectedPt.id);
-      if (currentPt) {
-        setSelectedPt(currentPt);
-      }
-      
-      const scheds = await db.getSchedules(selectedPt.id);
-      setSchedules(scheds);
-      
-      const attached = await db.getAttachedComponents(selectedPt.id);
-      setAttachedComponents(attached);
-      await refreshScheduleValidity(scheds, attached);
-
-      if (selectedSchedule) {
-        const stillExists = scheds.find(s => s.id === selectedSchedule.id);
-        if (stillExists) {
-          handleSelectSchedule(stillExists, selectedPt.id);
-        } else if (scheds.length > 0) {
-          handleSelectSchedule(scheds[0], selectedPt.id);
-        } else {
-          setSelectedSchedule(null);
-          setMilestones([]);
-        }
-      } else if (scheds.length > 0) {
-        handleSelectSchedule(scheds[0], selectedPt.id);
-      }
-    } catch (err) {
-      console.error('Error refreshing details', err);
-    }
-  };
 
   // ==========================================
   // PRODUCT TYPE CRUD
@@ -164,22 +136,6 @@ export default function ProductTypeManager() {
     } catch (err) {
       console.error('Failed to load global components', err);
     }
-  };
-
-  const refreshScheduleValidity = async (scheduleList, components = attachedComponents) => {
-    const validityEntries = await Promise.all(scheduleList.map(async schedule => {
-      const configured = await db.getComponentSchedules(schedule.id);
-      const isValid = components.length > 0 && configured.length >= components.length;
-      return [schedule.id, {
-        isValid,
-        reason: components.length === 0
-          ? 'Attach at least one component first.'
-          : isValid
-            ? 'All attached components have lead times for this schedule.'
-            : 'Indicate lead time for every attached component.'
-      }];
-    }));
-    setScheduleValidity(Object.fromEntries(validityEntries));
   };
 
   useEffect(() => {
@@ -305,7 +261,7 @@ export default function ProductTypeManager() {
         ? 'Existing component found and attached successfully!'
         : 'New component created and attached successfully!');
       loadGlobalComponents();
-      refreshPtDetails();
+      await handleSelectProductType(selectedPt);
     } catch (err) {
       triggerAlert('error', `Failed to create component: ${err.message}`);
     }
@@ -318,56 +274,12 @@ export default function ProductTypeManager() {
       await db.attachComponentToProductType(parseInt(selectedGlobalComponentId), selectedPt.id);
       setSelectedGlobalComponentId('');
       triggerAlert('success', 'Component attached successfully!');
-      refreshPtDetails();
+      await handleSelectProductType(selectedPt);
     } catch (err) {
       triggerAlert('error', `Failed to attach component: ${err.message}`);
     }
   };
 
-  // ==========================================
-  // COMPONENT SCHEDULE LEAD TIMES SAVE
-  // ==========================================
-
-  const handleLeadTimeChange = (compId, schedId, field, value) => {
-    setLeadTimeSettings(prev => ({
-      ...prev,
-      [`${compId}-${schedId}`]: {
-        ...prev[`${compId}-${schedId}`],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleSaveLeadTimesForSchedule = async (scheduleId) => {
-    if (!selectedPt) return;
-    setLoading(true);
-    try {
-      const schedMilestones = await db.getMilestones(scheduleId);
-      const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id
-                           || schedMilestones[0]?.id;
-
-      for (const c of attachedComponents) {
-        const key = `${c.id}-${scheduleId}`;
-        const config = leadTimeSettings[key];
-
-        const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
-        const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
-
-        if (anchorId) {
-          await db.saveComponentSchedule(scheduleId, c.id, anchorId, leadTime);
-        }
-      }
-
-      await db.updateProductTypeStatus(selectedPt.id);
-      await refreshScheduleValidity(schedules, attachedComponents);
-      triggerAlert('success', 'Lead times saved successfully for this schedule!');
-      await refreshPtDetails();
-    } catch (err) {
-      triggerAlert('error', `Failed to save lead times: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // ==========================================
   // CSV IMPORT / EXPORT FUNCTIONS
@@ -859,7 +771,7 @@ export default function ProductTypeManager() {
       await db.updateProductTypeStatus(selectedPt.id);
       triggerAlert('success', 'Schedules, milestones, components, and lead times imported successfully!');
       loadGlobalComponents();
-      await refreshPtDetails();
+      await handleSelectProductType(selectedPt);
     } catch (err) {
       triggerAlert('error', `Import failed: ${err.message}`);
     } finally {
@@ -918,11 +830,6 @@ export default function ProductTypeManager() {
     };
     visit(root, 0);
     return timeline.sort((a, b) => a.relativeDays - b.relativeDays || a.id - b.id);
-  };
-
-  const getScheduleValidity = (schedule) => scheduleValidity[schedule.id] || {
-    isValid: false,
-    reason: 'Lead-time status is loading.'
   };
 
   const renderImportReview = () => {
@@ -1183,245 +1090,38 @@ export default function ProductTypeManager() {
 
         {/* TAB 2: ATTACHED COMPONENTS */}
         {activeTab === 'components' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Form: Attach component */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm h-fit space-y-6">
-              {/* Attach Existing Component */}
-              <div>
-                <h3 className="font-bold text-gray-900 text-md mb-3 flex items-center space-x-2">
-                  <Tag className="w-4 h-4 text-indigo-500" />
-                  <span>Attach Existing Component</span>
-                </h3>
-                <div className="space-y-3">
-                  <input
-                    type="search"
-                    value={componentProductTypeSearch}
-                    onChange={(e) => setComponentProductTypeSearch(e.target.value)}
-                    placeholder="Search product types..."
-                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <select
-                    value={componentProductTypeId}
-                    onChange={(e) => {
-                      setComponentProductTypeId(e.target.value);
-                      setSelectedGlobalComponentId('');
-                    }}
-                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="">1. Choose a product type</option>
-                    {productTypes
-                      .filter(pt => pt.name.toLowerCase().includes(componentProductTypeSearch.toLowerCase()))
-                      .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
-                  </select>
-                  <select
-                    value={selectedGlobalComponentId}
-                    onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
-                    disabled={!componentProductTypeId}
-                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
-                  >
-                    <option value="">2. Choose a component</option>
-                    {sourceComponents
-                      .filter(component => !attachedComponents.some(attached => attached.id === component.id))
-                      .filter(component => component.name.toLowerCase().includes(componentSearch.toLowerCase()))
-                      .map(component => <option key={component.id} value={component.id}>{component.name}</option>)}
-                  </select>
-                  <input
-                    type="search"
-                    value={componentSearch}
-                    onChange={(e) => setComponentSearch(e.target.value)}
-                    placeholder="Search components..."
-                    disabled={!componentProductTypeId}
-                    className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
-                  />
-                  <button
-                    onClick={handleAttachExistingComponent}
-                    disabled={!selectedGlobalComponentId || !componentProductTypeId}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-                  >
-                    Attach Component
-                  </button>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-6">
-                <h3 className="font-bold text-gray-900 text-md mb-3">Or Create New Component Globally</h3>
-                <form onSubmit={handleCreateGlobalComponent} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase">Component Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={componentForm.name}
-                      onChange={(e) => setComponentForm({ ...componentForm, name: e.target.value })}
-                      placeholder="e.g. Condenser, Water Pump"
-                      className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase">Remarks (Optional)</label>
-                    <textarea
-                      rows="2"
-                      value={componentForm.remarks}
-                      onChange={(e) => setComponentForm({ ...componentForm, remarks: e.target.value })}
-                      placeholder="e.g. Copper coil, heavy duty"
-                      className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-sm font-semibold shadow transition"
-                  >
-                    Create and Attach Component
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Right List: Attached Components Table */}
-            <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 text-lg mb-2">BOM - Bill of Materials</h3>
-              <p className="text-xs text-gray-500 mb-4">
-                Components list of this product type. You can attach existing components from other product types or create new ones globally.
-              </p>
-
-              {attachedComponents.length === 0 ? (
-                <div className="p-16 text-center text-gray-400">
-                  <Info className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p className="font-medium text-sm">No components are currently attached to this product type.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Component Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Global Remarks</th>
-                        <th className="relative px-6 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200 text-sm text-gray-600">
-                      {attachedComponents.map(c => (
-                        <tr key={c.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap font-semibold text-gray-900">{c.name}</td>
-                          <td className="px-6 py-4 text-xs text-gray-500 max-w-xs truncate">{c.remarks || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => handleDetachComponent(c.id, c.name)}
-                              className="text-red-600 hover:text-red-950 flex items-center space-x-1 ml-auto"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span>Detach</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
+          <BomTab
+            productTypes                  = {productTypes}
+            attachedComponents            = {attachedComponents}
+            sourceComponents              = {sourceComponents}
+            handleAttachExistingComponent = {handleAttachExistingComponent}
+            handleCreateGlobalComponent   = {handleCreateGlobalComponent}
+            handleDetachComponent         = {handleDetachComponent}
+            setComponentProductTypeSearch = {setComponentProductTypeSearch}
+            componentProductTypeSearch    = {componentProductTypeSearch}
+            componentProductTypeId        = {componentProductTypeId}
+            setComponentProductTypeId     = {setComponentProductTypeId}
+            selectedGlobalComponentId     = {selectedGlobalComponentId}
+            setSelectedGlobalComponentId  = {setSelectedGlobalComponentId}
+            componentForm                 = {componentForm}
+            setComponentForm              = {setComponentForm}
+            componentSearch               = {componentSearch}
+            setComponentSearch            = {setComponentSearch}
+          />
         )}
 
         {/* TAB 3: COMPONENT LEAD TIMES */}
         {activeTab === 'leadtimes' && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Procurement Lead Times of Each Schedules</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Specify the delivery lead time (in days) and the anchor milestone from which the countdown calculates.
-                </p>
-              </div>
-              <button
-                onClick={handleSaveLeadTimes}
-                disabled={attachedComponents.length === 0 || schedules.length === 0}
-                className="flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-              >
-                <Check className="w-4 h-4" />
-                <span>Save All Lead Times</span>
-              </button>
-            </div>
-
-            {attachedComponents.length === 0 || schedules.length === 0 ? (
-              <div className="p-16 text-center text-gray-400">
-                <Info className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="font-medium text-sm">
-                  Must have at least one schedule and one attached component to set lead times.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {schedules.map(s => {
-                  // Fetch milestones of this schedule
-                  const schedMilestones = milestones.filter(m => m.schedule_id === s.id);
-                  const activeMilestones = schedMilestones.length > 0 ? schedMilestones : milestones;
-
-                  return (
-                    <div key={s.id} className="border border-gray-200 rounded-lg p-5 bg-gray-50/50 space-y-4">
-                      <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2">
-                        <h4 className="font-bold text-gray-900 text-sm">
-                          Schedule: <span className="text-indigo-700">{s.name}</span>
-                        </h4>
-                        <span
-                          title={getScheduleValidity(s).reason}
-                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            getScheduleValidity(s).isValid
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}
-                        >
-                          {getScheduleValidity(s).isValid ? 'VALID' : 'INCOMPLETE'}
-                        </span>
-                      </div>
-                      {!getScheduleValidity(s).isValid && (
-                        <p className="text-xs text-amber-700">{getScheduleValidity(s).reason}</p>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {attachedComponents.map(c => {
-                          const key = `${c.id}-${s.id}`;
-                          const setting = leadTimeSettings[key] || { anchor_id: '', lead_time: 0 };
-
-                          return (
-                            <div key={c.id} className="p-4 bg-white rounded-lg border border-gray-200 flex flex-col justify-between shadow-sm space-y-3">
-                              <span className="font-bold text-sm text-gray-800">{c.name}</span>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Anchor Milestone</label>
-                                  <select
-                                    value={setting.anchor_id}
-                                    onChange={(e) => handleLeadTimeChange(c.id, s.id, 'anchor_id', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
-                                  >
-                                    <option value="">Default (ROS)</option>
-                                    {activeMilestones.map(m => (
-                                      <option key={m.id} value={m.id}>
-                                        {m.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Lead Time (Days)</label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={setting.lead_time}
-                                    onChange={(e) => handleLeadTimeChange(c.id, s.id, 'lead_time', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <LeadTimesTab 
+            schedules             = {schedules}
+            milestones            = {milestones}
+            attachedComponents    = {attachedComponents}
+            leadTimeSettings      = {leadTimeSettings}
+            handleLeadTimeChange  = {handleLeadTimeChange}
+            handleSaveLeadTimes   = {handleSaveLeadTimes}
+            scheduleValidity      = {scheduleValidity}
+            getScheduleValidity   = {getScheduleValidity}
+          />
         )}
 
         {/* MODAL: ADD SCHEDULE */}

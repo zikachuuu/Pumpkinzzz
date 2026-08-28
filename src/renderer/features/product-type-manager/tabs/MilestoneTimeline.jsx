@@ -1,5 +1,29 @@
 import React from 'react';
 
+/**
+ * This component renders a timeline of milestones based on their anchor relationships and offsets. 
+ * It builds a tree structure of milestones and then generates a timeline for each root milestone, displaying the relative days before or after the root milestone.
+ * 
+ * @param {Array} milestones - An array of milestone objects, each containing id, name, anchor_id, and offset properties.
+ * @returns {JSX.Element} A grid of milestone timelines for each root milestone.
+ * 
+ * Milestone Object Structure:
+ * - id: Unique identifier for the milestone.
+ * - name: Name of the milestone.
+ * - anchor_id: ID of the milestone this one is anchored to (null if it's a root milestone).
+ * - offset: Number of days before or after the anchor milestone (can be negative).
+ * 
+ * Timeline Generation:
+ * - The component first builds a tree of milestones based on their anchor relationships.
+ * - For each root milestone, it generates a timeline by traversing its children and calculating their relative days.
+ * - The timeline is sorted by relative days and then by milestone ID for consistent ordering.
+ * 
+ * Display:
+ * - Each root milestone's timeline is displayed in a bordered box with a title.
+ * - Each milestone in the timeline shows its name and its relationship to its anchor and root milestones, including the number of days before or after.
+ * 
+ */
+
 function buildMilestoneTree(milestoneList) {
   const roots = milestoneList.filter(milestone => !milestone.anchor_id);
   const findChildren = node => ({

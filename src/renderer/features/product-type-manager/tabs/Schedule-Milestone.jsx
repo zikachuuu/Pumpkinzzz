@@ -118,8 +118,6 @@ export default function SchedulesTab({
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Schedules List */}
                 <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm flex flex-col h-fit">
                 <div className="flex items-center justify-between mb-4">
@@ -324,8 +322,6 @@ export default function SchedulesTab({
                     </div>
                 )}
                 </div>
-            </div>
-            }
         </div>
     );
 }

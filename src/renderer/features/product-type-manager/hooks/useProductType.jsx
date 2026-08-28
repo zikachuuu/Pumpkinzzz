@@ -100,6 +100,7 @@ export function useProductType(triggerAlert) {
 
   // 4. Return everything the UI needs
   return {
+    productTypes, setProductTypes,
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     sortBy, setSortBy,

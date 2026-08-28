@@ -47,7 +47,7 @@ export function useProductTypeConfig(triggerAlert) {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // 1. Select a Product Type and load its specific data
-  const handleSelectProductType = async (pt) => {
+const handleSelectProductType = async (pt) => {
     setSelectedPt(pt);
     setActiveTab('schedules');
     setIsDetailLoading(true);
@@ -59,7 +59,9 @@ export function useProductTypeConfig(triggerAlert) {
       const attached = await db.getAttachedComponents(pt.id);
       setAttachedComponents(attached);
       
-      // We will move refreshScheduleValidity here too, but let's keep it simple for a second
+      // 👇 ADD THIS LINE to calculate validity 👇
+      await refreshScheduleValidity(scheds, attached);
+      
       if (scheds.length > 0) {
         await handleSelectSchedule(scheds[0], pt.id);
       } else {
@@ -196,6 +198,39 @@ export function useProductTypeConfig(triggerAlert) {
     }
   };
 
+  // 1. Calculate Validity
+  const refreshScheduleValidity = async (scheduleList, components) => {
+    const validityEntries = await Promise.all(scheduleList.map(async schedule => {
+      const configured = await db.getComponentSchedules(schedule.id);
+      const isValid = components.length > 0 && configured.length >= components.length;
+      return [schedule.id, {
+        isValid,
+        reason: components.length === 0
+          ? 'Attach at least one component first.'
+          : isValid
+            ? 'All attached components have lead times for this schedule.'
+            : 'Indicate lead time for every attached component.'
+      }];
+    }));
+    setScheduleValidity(Object.fromEntries(validityEntries));
+  };
+
+  const getScheduleValidity = (schedule) => scheduleValidity[schedule.id] || {
+    isValid: false,
+    reason: 'Lead-time status is loading.'
+  };
+
+  // 2. Handle Lead Time Input Changes
+  const handleLeadTimeChange = (compId, schedId, field, value) => {
+    setLeadTimeSettings(prev => ({
+      ...prev,
+      [`${compId}-${schedId}`]: {
+        ...prev[`${compId}-${schedId}`],
+        [field]: value
+      }
+    }));
+  };
+
   return {
     selectedPt, 
     activeTab, 
@@ -216,6 +251,9 @@ export function useProductTypeConfig(triggerAlert) {
     handleSaveMilestone,
     handleDeleteMilestone,
     handleDetachComponent,
-    handleSaveLeadTimes
+    handleSaveLeadTimes,
+    refreshScheduleValidity,
+    getScheduleValidity,
+    handleLeadTimeChange
   };
 }
