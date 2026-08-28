@@ -3,6 +3,7 @@ import { AlertCircle, BarChart3, Calendar, Clock, Layers, Plus, Trash2, ChevronD
 import * as db from '../../utils/db';
 import { calculateMilestoneDeadlines } from '../../utils/scheduler';
 import { formatDate } from '../../utils/date';
+import Alert from '../../components/ui/Alert.jsx';
 
 const dayMs = 1000 * 60 * 60 * 24;
 const daysBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / dayMs);
@@ -105,7 +106,7 @@ export default function Dashboard({ dateFormat }) {
         </div>
       </div>
 
-      {alert && <div className={`p-4 rounded-lg border flex items-center gap-3 ${alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}><AlertCircle className="w-5 h-5" /><span className="text-sm font-semibold">{alert.message}</span></div>}
+      <Alert alert={alert} />
 
       {activeTab === 'product' && (
         <>

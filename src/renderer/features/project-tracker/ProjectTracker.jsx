@@ -8,6 +8,7 @@ import * as db from '../../utils/db';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../utils/scheduler';
 import { stringifyCSV } from '../../utils/csv';
 import { formatDate, getUrgencySettings } from '../../utils/date';
+import Alert from '../../components/ui/Alert.jsx';
 
 export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   // Global reference states
@@ -342,15 +343,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
         </div>
       </div>
 
-      {/* Floating Alert */}
-      {alert && (
-        <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-          alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          <span className="text-sm font-semibold">{alert.message}</span>
-        </div>
-      )}
+      <Alert alert={alert} />
 
       {/* Search and Filters */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">

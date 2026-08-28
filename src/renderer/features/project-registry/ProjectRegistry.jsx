@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import * as db from '../../utils/db';
 import { parseCSV, stringifyCSV } from '../../utils/csv';
+import Alert from '../../components/ui/Alert.jsx';
 
 export default function ProductRegistry({ onRedirectToTracker }) {
   // Global reference states
@@ -514,15 +515,7 @@ export default function ProductRegistry({ onRedirectToTracker }) {
           </div>
         </div>
 
-        {/* Bulk Alert Panel */}
-        {alert && (
-          <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-            alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-            <span className="text-sm font-semibold">{alert.message}</span>
-          </div>
-        )}
+        <Alert alert={alert} />
 
         {hasAnyErrors && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs font-semibold flex items-center space-x-3">

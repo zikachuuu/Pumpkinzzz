@@ -17,6 +17,7 @@ import {
   stringifyMilestonesOnly,
   stringifyFullProductTypeBackup
 } from '../../utils/csv';
+import Alert from '../../components/ui/Alert';
 
 export default function ProductTypeManager() {
   // State for Product Types Overview List
@@ -1439,15 +1440,7 @@ export default function ProductTypeManager() {
           </div>
         </div>
 
-        {/* Floating Alert inside detail view */}
-        {alert && (
-          <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-            alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-            <span className="text-sm font-medium">{alert.message}</span>
-          </div>
-        )}
+        <Alert alert={alert} />
 
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 bg-white rounded-t-lg">
@@ -2145,15 +2138,7 @@ export default function ProductTypeManager() {
         onDeleteAll={handleDeleteAllProductTypes}
       />
 
-      {/* Floating global Alert */}
-      {alert && (
-        <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-          alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          <span className="text-sm font-medium">{alert.message}</span>
-        </div>
-      )}
+      <Alert alert={alert} />
 
       {/* Filters and Searches */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">

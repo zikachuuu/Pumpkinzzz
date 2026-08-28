@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import Dashboard from './components/Dashboard';
-import ProductTypeManager from './components/ProductTypeManager';
-import ProductRegistry from './components/ProductRegistry';
-import ProjectTracker from './components/ProjectTracker';
-import Settings from './components/Settings';
+import Dashboard from './features/dashboard/Dashboard.jsx';
+import ProductTypeManager from './features/product-type-manager/ProductTypeManager.jsx';
+import ProductRegistry from './features/project-registry/ProjectRegistry.jsx';
+import ProjectTracker from './features/project-tracker/ProjectTracker.jsx';
+import Settings from './features/setting/Settings.jsx';
 import { DATE_FORMATS, getStoredDateFormat, setStoredDateFormat } from './utils/date';
 
 export default function App() {
