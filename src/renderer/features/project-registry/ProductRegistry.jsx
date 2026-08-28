@@ -3,8 +3,8 @@ import {
   Download, Upload, Save, Trash2, ArrowLeft, AlertCircle, CheckCircle2, 
   RefreshCw, Check, X, Clipboard, HelpCircle
 } from 'lucide-react';
-import * as db from '../utils/db';
-import { parseCSV, stringifyCSV } from '../utils/csv';
+import * as db from '../../utils/db';
+import { parseCSV, stringifyCSV } from '../../utils/csv';
 
 export default function ProductRegistry({ onRedirectToTracker }) {
   // Global reference states

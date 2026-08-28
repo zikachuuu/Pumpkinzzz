@@ -4,7 +4,7 @@ import {
   Search, CheckCircle2, AlertCircle, Settings, Layers, Calendar, 
   Tag, Info, Check, RefreshCw, X
 } from 'lucide-react';
-import * as db from '../utils/db';
+import * as db from '../../utils/db';
 import BatchCsvSection from './BatchCsvSection';
 import ImportReview from './ImportReview';
 import MilestoneTimeline from './MilestoneTimeline';
@@ -16,7 +16,7 @@ import {
   stringifySchedulesTemplate,
   stringifyMilestonesOnly,
   stringifyFullProductTypeBackup
-} from '../utils/csv';
+} from '../../utils/csv';
 
 export default function ProductTypeManager() {
   // State for Product Types Overview List

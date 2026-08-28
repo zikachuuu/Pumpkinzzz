@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, BarChart3, Calendar, Clock, Layers, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import * as db from '../utils/db';
-import { calculateMilestoneDeadlines } from '../utils/scheduler';
-import { formatDate } from '../utils/date';
+import * as db from '../../utils/db';
+import { calculateMilestoneDeadlines } from '../../utils/scheduler';
+import { formatDate } from '../../utils/date';
 
 const dayMs = 1000 * 60 * 60 * 24;
 const daysBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / dayMs);

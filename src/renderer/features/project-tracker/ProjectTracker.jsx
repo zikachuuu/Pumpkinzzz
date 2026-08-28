@@ -4,10 +4,10 @@ import {
   CheckCircle2, AlertCircle, RefreshCw, Layers, Check, X, Info, 
   ArrowRight, Shield, Clock, Plus
 } from 'lucide-react';
-import * as db from '../utils/db';
-import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../utils/scheduler';
-import { stringifyCSV } from '../utils/csv';
-import { formatDate, getUrgencySettings } from '../utils/date';
+import * as db from '../../utils/db';
+import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../utils/scheduler';
+import { stringifyCSV } from '../../utils/csv';
+import { formatDate, getUrgencySettings } from '../../utils/date';
 
 export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   // Global reference states

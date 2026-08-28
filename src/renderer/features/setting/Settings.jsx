@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, Check, Clock } from 'lucide-react';
-import { DATE_FORMATS, DEFAULT_URGENCY_SETTINGS, formatDate, getUrgencySettings, setUrgencySettings } from '../utils/date';
+import { DATE_FORMATS, DEFAULT_URGENCY_SETTINGS, formatDate, getUrgencySettings, setUrgencySettings } from '../../utils/date';
 
 export default function Settings({ dateFormat, onDateFormatChange }) {
   const [urgencySettings, setUrgencySettingsState] = React.useState(getUrgencySettings);
