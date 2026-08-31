@@ -55,14 +55,14 @@ export default function LeadTimesTab({
                         className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                         getScheduleValidity(s).isValid
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
                         }`}
                     >
-                        {getScheduleValidity(s).isValid ? 'VALID' : 'INCOMPLETE'}
+                        {getScheduleValidity(s).isValid ? 'COMPLETE' : 'INCOMPLETE'}
                     </span>
                     </div>
                     {!getScheduleValidity(s).isValid && (
-                    <p className="text-xs text-amber-700">{getScheduleValidity(s).reason}</p>
+                    <p className="text-xs text-red-700">{getScheduleValidity(s).reason}</p>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {attachedComponents.map(c => {

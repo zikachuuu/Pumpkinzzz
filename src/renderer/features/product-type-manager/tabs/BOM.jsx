@@ -8,76 +8,84 @@ export default function BomTab({
     handleAttachExistingComponent,
     handleCreateGlobalComponent,
     handleDetachComponent,
-    setComponentProductTypeSearch,
-    componentProductTypeSearch,
     componentProductTypeId,
     setComponentProductTypeId,
     selectedGlobalComponentId,
     setSelectedGlobalComponentId,
     componentForm,
     setComponentForm,
-    componentSearch,
-    setComponentSearch,  
+    allGlobalComponents, 
 }) {
+
+// 👇 ADD THIS LOGIC BLOCK 👇
+// If a filter is selected, use DB source components. Otherwise, use all global components.
+const componentsToDisplay = componentProductTypeId 
+? sourceComponents 
+: allGlobalComponents;
+
+// Remove components that are already attached to this product type
+const availableComponents = (componentsToDisplay || []).filter(
+component => !attachedComponents.some(attached => attached.id === component.id)
+);
+
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Form: Attach component */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm h-fit space-y-6">
             {/* Attach Existing Component */}
             <div>
-            <h3 className="font-bold text-gray-900 text-md mb-3 flex items-center space-x-2">
-                <Tag className="w-4 h-4 text-indigo-500" />
-                <span>Attach Existing Component</span>
-            </h3>
-            <div className="space-y-3">
-                <input
-                type="search"
-                value={componentProductTypeSearch}
-                onChange={(e) => setComponentProductTypeSearch(e.target.value)}
-                placeholder="Search product types..."
-                className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-                <select
-                value={componentProductTypeId}
-                onChange={(e) => {
-                    setComponentProductTypeId(e.target.value);
-                    setSelectedGlobalComponentId('');
-                }}
-                className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
-                <option value="">1. Choose a product type</option>
-                {productTypes
-                    .filter(pt => pt.name.toLowerCase().includes(componentProductTypeSearch.toLowerCase()))
-                    .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
-                </select>
-                <select
-                value={selectedGlobalComponentId}
-                onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
-                disabled={!componentProductTypeId}
-                className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
-                >
-                <option value="">2. Choose a component</option>
-                {sourceComponents
-                    .filter(component => !attachedComponents.some(attached => attached.id === component.id))
-                    .filter(component => component.name.toLowerCase().includes(componentSearch.toLowerCase()))
-                    .map(component => <option key={component.id} value={component.id}>{component.name}</option>)}
-                </select>
-                <input
-                type="search"
-                value={componentSearch}
-                onChange={(e) => setComponentSearch(e.target.value)}
-                placeholder="Search components..."
-                disabled={!componentProductTypeId}
-                className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
-                />
-                <button
-                onClick={handleAttachExistingComponent}
-                disabled={!selectedGlobalComponentId || !componentProductTypeId}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-                >
-                Attach Component
-                </button>
-            </div>
+              <h3 className="font-bold text-gray-900 text-md mb-3 flex items-center space-x-2">
+                  <Tag className="w-4 h-4 text-indigo-500" />
+                  <span>Attach Existing Component</span>
+              </h3>
+              
+              <div className="space-y-3">
+                  {/* Side-by-Side Dropdowns */}
+                  <div className="flex items-center gap-2">
+                    
+                    {/* Main Component Dropdown (Wider) */}
+                    <select
+                      value={selectedGlobalComponentId}
+                      onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                    >
+                      <option value="">-- Select a component --</option>
+                      {availableComponents.map(component => (
+                        <option key={component.id} value={component.id}>
+                          {component.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* PT Filter Dropdown (Smaller) */}
+                    <select
+                      value={componentProductTypeId}
+                      onChange={(e) => {
+                          setComponentProductTypeId(e.target.value);
+                          setSelectedGlobalComponentId(''); // Reset selection when filter changes
+                      }}
+                      title="Filter by Product Type"
+                      className="block w-1/2 rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
+                    >
+                      <option value="">All Product Types</option>
+                      {productTypes.map(pt => (
+                        <option key={pt.id} value={pt.id}>
+                          {pt.name}
+                        </option>
+                      ))}
+                    </select>
+
+                  </div>
+
+                  <button
+                    onClick={handleAttachExistingComponent}
+                    disabled={!selectedGlobalComponentId}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                  >
+                    Attach Component
+                  </button>
+              </div>
             </div>
 
             <div className="border-t border-gray-100 pt-6">

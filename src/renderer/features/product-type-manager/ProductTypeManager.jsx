@@ -59,13 +59,11 @@ export default function ProductTypeManager() {
   });
 
   // Components Management State
-  const [allGlobalComponents, setAllGlobalComponents] = useState([]);
-  const [componentProductTypeSearch, setComponentProductTypeSearch] = useState('');
-  const [componentProductTypeId, setComponentProductTypeId] = useState('');
-  const [sourceComponents, setSourceComponents] = useState([]);
-  const [componentSearch, setComponentSearch] = useState('');
-  const [showAddComponentModal, setShowAddComponentModal] = useState(false);
-  const [componentForm, setComponentForm] = useState({ name: '', remarks: '' });
+  const [allGlobalComponents      , setAllGlobalComponents] = useState([]);
+  const [componentProductTypeId   , setComponentProductTypeId] = useState('');
+  const [sourceComponents         , setSourceComponents] = useState([]);
+  const [showAddComponentModal    , setShowAddComponentModal] = useState(false);
+  const [componentForm            , setComponentForm] = useState({ name: '', remarks: '' });
   const [selectedGlobalComponentId, setSelectedGlobalComponentId] = useState('');
 
   // Initial Data Load
@@ -1098,16 +1096,13 @@ export default function ProductTypeManager() {
             handleAttachExistingComponent = {handleAttachExistingComponent}
             handleCreateGlobalComponent   = {handleCreateGlobalComponent}
             handleDetachComponent         = {handleDetachComponent}
-            setComponentProductTypeSearch = {setComponentProductTypeSearch}
-            componentProductTypeSearch    = {componentProductTypeSearch}
             componentProductTypeId        = {componentProductTypeId}
             setComponentProductTypeId     = {setComponentProductTypeId}
             selectedGlobalComponentId     = {selectedGlobalComponentId}
             setSelectedGlobalComponentId  = {setSelectedGlobalComponentId}
             componentForm                 = {componentForm}
             setComponentForm              = {setComponentForm}
-            componentSearch               = {componentSearch}
-            setComponentSearch            = {setComponentSearch}
+            allGlobalComponents           = {allGlobalComponents}
           />
         )}
 
