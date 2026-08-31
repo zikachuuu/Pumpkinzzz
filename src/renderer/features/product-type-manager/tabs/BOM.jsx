@@ -28,7 +28,6 @@ const availableComponents = (componentsToDisplay || []).filter(
 component => !attachedComponents.some(attached => attached.id === component.id)
 );
 
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Form: Attach component */}
@@ -88,8 +87,15 @@ component => !attachedComponents.some(attached => attached.id === component.id)
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
-            <h3 className="font-bold text-gray-900 text-md mb-3">Or Create New Component Globally</h3>
+            {/* ---- OR ---- (lines on both sides extended to both ends) */}
+            <div className="flex items-center justify-center space-x-3">
+              <div className="flex-1 h-px bg-gray-300"></div>
+              <span className="text-gray-400 font-semibold">OR</span>
+              <div className="flex-1 h-px bg-gray-300"></div>
+            </div>
+
+            <div>
+            <h3 className="font-bold text-gray-900 text-md mb-3">Create New Component Globally</h3>
             <form onSubmit={handleCreateGlobalComponent} className="space-y-4">
                 <div>
                 <label className="block text-xs font-bold text-gray-600 uppercase">Component Name</label>

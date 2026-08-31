@@ -80,7 +80,7 @@ export default function LeadTimesTab({
                                 onChange={(e) => handleLeadTimeChange(c.id, s.id, 'anchor_id', e.target.value)}
                                 className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
                                 >
-                                <option value="">Default (ROS)</option>
+                                <option value="">ROS</option>
                                 {activeMilestones.map(m => (
                                     <option key={m.id} value={m.id}>
                                     {m.name}

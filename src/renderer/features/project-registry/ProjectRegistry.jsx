@@ -828,7 +828,7 @@ export default function ProjectRegistry({ onRedirectToTracker }) {
                         disabled={!isValid}
                         className={!isValid ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'}
                       >
-                        {s.name} {!isValid ? '(No Lead Times)' : '(VALID)'}
+                        {s.name} {!isValid ? '(INCOMPLETE)' : '(COMPLETE)'}
                       </option>
                     );
                   })}
