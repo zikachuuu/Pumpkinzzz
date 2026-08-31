@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Download, Upload, Save, Trash2, ArrowLeft, AlertCircle, CheckCircle2, 
-  RefreshCw, Check, X, Clipboard, HelpCircle
+  RefreshCw, Check, X, Clipboard, HelpCircle, Info, ChevronDown, ChevronUp
 } from 'lucide-react';
 import * as db from '../../utils/db';
 import { parseCSV, stringifyCSV } from '../../utils/csv';
 import Alert from '../../components/ui/Alert.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ModalValidityStatusGuide from '../product-type-manager/components/Modal-ValidityStatusGuide.jsx';
 
 export default function ProjectRegistry({ onRedirectToTracker }) {
   // Global reference states
-  const [productTypes, setProductTypes] = useState([]);
-  const [existingProjects, setExistingProjects] = useState([]);
-  const [allSchedules, setSchedules] = useState({}); // ptId -> schedules array
+  const [productTypes         , setProductTypes]          = useState([]);
+  const [existingProjects     , setExistingProjects]      = useState([]);
+  const [allSchedules         , setSchedules]             = useState({}); // ptId -> schedules array
   const [scheduleValidationMap, setScheduleValidationMap] = useState({}); // scheduleId -> boolean (is valid)
-  const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
+  const [loading              , setLoading]               = useState(false);
+  const [alert                , setAlert]                 = useState(null);
+  const [showValidityModal    , setShowValidityModal]     = useState(false);
 
   // Manual Form States
   const [formData, setFormForm] = useState({
@@ -689,6 +692,19 @@ export default function ProjectRegistry({ onRedirectToTracker }) {
               Every project is affiliated with a product type and a schedule. Only product types that are <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">SUB-VALID</span> and <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">VALID</span> can be registered under a project.
             </p>
           </div>
+
+        {/* 👇 ADD THIS BUTTON 👇 */}
+          <button
+            type="button"
+            onClick={() => setShowValidityModal(true)}
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition mt-3"
+            title="Learn more about Product Type status"
+          >
+            <span>Learn more about validity status here</span>
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
+              <Info className="w-3.5 h-3.5" />
+            </span>
+          </button>        
         </div>
       </div>
 
@@ -982,6 +998,12 @@ export default function ProjectRegistry({ onRedirectToTracker }) {
           </div>
         </form>
       </div>
+
+      {/* 👇 ADD THIS MODAL COMPONENT 👇 */}
+      <ModalValidityStatusGuide
+        isOpen={showValidityModal} 
+        onClose={() => setShowValidityModal(false)} 
+      />    
     </div>
   );
 }

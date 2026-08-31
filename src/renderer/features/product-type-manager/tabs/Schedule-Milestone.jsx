@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Calendar, Layers, Edit } from 'lucide-react';
-import MilestoneTimeline from './MilestoneTimeline'; // Adjust path if needed
+import MilestoneTimeline from '../components/MilestoneTimeline'; // Adjust path if needed
 import { stringifyProductTypesTemplate } from '../../../utils/csv';
 
 /**

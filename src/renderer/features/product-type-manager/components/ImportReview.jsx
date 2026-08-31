@@ -1,6 +1,32 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
+/**
+ * This component renders a review interface for CSV imports of product types. 
+ * It displays new and existing product types detected in the uploaded CSV, allowing users to make decisions on whether to keep existing data or import new data. 
+ * The component also provides information about the import mode (partial or full) and any potential data loss warnings.
+ * 
+ * Props:
+ * - importReview: Object containing the review data for the CSV import
+ * - loading: Boolean indicating if the component is currently loading
+ * - onSetDecisionForAll: Function to set the decision for all rows
+ * - onSetDecision: Function to set the decision for a specific row
+ * - onCancel: Function to cancel the import
+ * - onConfirm: Function to confirm the import
+ * 
+ * The component uses a ReviewTable subcomponent to display the new and existing product types, along with their imported data and decision options.
+ * 
+ * @param {Object} props - The component props
+ * @param {Object} props.importReview - The review data for the CSV import
+ * @param {boolean} props.loading - Whether the component is currently loading
+ * @param {Function} props.onSetDecisionForAll - Function to set the decision for all rows
+ * @param {Function} props.onSetDecision - Function to set the decision for a specific row
+ * @param {Function} props.onCancel - Function to cancel the import
+ * @param {Function} props.onConfirm - Function to confirm the import
+ * 
+ * @returns {JSX.Element} The rendered component
+ */
+
 export default function ImportReview({ importReview, loading, onSetDecisionForAll, onSetDecision, onCancel, onConfirm }) {
   const newRows = importReview.rows.filter(row => !row.existing);
   const existingRows = importReview.rows.filter(row => row.existing);

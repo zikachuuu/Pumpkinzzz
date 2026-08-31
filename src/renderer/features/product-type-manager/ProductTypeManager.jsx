@@ -5,9 +5,9 @@ import {
   Tag, Info, Check, RefreshCw, X
 } from 'lucide-react';
 import * as db from '../../utils/db';
-import BatchCsvSection from './BatchCsvSection';
-import ImportReview from './ImportReview';
-import MilestoneTimeline from './tabs/MilestoneTimeline';
+import BatchCsvSection from './components/BatchCsvSection';
+import ImportReview from './components/ImportReview';
+
 import { 
   parseCSV, 
   stringifyProductTypes, 
@@ -25,6 +25,7 @@ import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 import ScheduleMilestoneTab from './tabs/Schedule-Milestone';
 import BomTab from './tabs/BOM';
 import LeadTimesTab from './tabs/LeadTime';
+import ModalValidityStatusGuide from './components/Modal-ValidityStatusGuide';
 
 export default function ProductTypeManager() {
   // State for Product Types Overview List
@@ -1554,43 +1555,10 @@ export default function ProductTypeManager() {
 
 
       {/* MODAL: VALIDITY STATUS GUIDE */}
-      <Modal
-        isOpen={showValidityModal}
-        title="Product Type Validity Status Guide"
-        onClose={() => setShowValidityModal(false)}
-      >
-        <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
-
-          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
-            <strong className="block text-red-950 mb-1">🔴 INVALID (Default for new records)</strong>
-            <p>The product type has no schedules, no BOM, or no procurement lead times.</p>
-      
-            <p>Invalid product types <strong>cannot</strong> be registered under new projects.</p>
-          </div>
-
-          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
-            <strong className="block text-amber-950 mb-1">🟡 SUB-VALID</strong>
-            <p>The product type has BOM, and at least one configured schedule associated with procurement lead time. </p>
-            <p>
-              Sub-valid product types can be registered under new projects, but only with the configured schedules.</p>
-          </div>
-
-          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
-            <strong className="block text-emerald-950 mb-1">🟢 VALID (Complete)</strong>
-            <p>The product type has BOM, and <strong>every</strong> schedule is associated with procurement lead times.</p>
-            <p>Valid product types can be registered under new projects, and all schedules will be available for selection.</p>
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={() => setShowValidityModal(false)}
-            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
-          >
-            Got It
-          </button>
-        </div>
-      </Modal>
+      <ModalValidityStatusGuide 
+        isOpen={showValidityModal} 
+        onClose={() => setShowValidityModal(false)} 
+      />
 
     </div>
   );
