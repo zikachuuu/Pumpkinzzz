@@ -31,7 +31,7 @@ export default function ModalValidityStatusGuide({ isOpen, onClose }) {
     >
       <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
-          <strong className="block text-red-950 mb-1">🔴 INVALID (Default for new records)</strong>
+          <strong className="block text-red-950 mb-1">🔴 INVALID (Default for newly created product types)</strong>
           <p>The product type has no schedules, no BOM, or no procurement lead times.</p>
           <p>Invalid product types <strong>cannot</strong> be registered under new projects.</p>
         </div>

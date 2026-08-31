@@ -150,41 +150,47 @@ export default function SchedulesTab({
 
                 {schedules.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 text-sm">
-                    No schedules defined. Add one to get started.
+                      No schedules defined. Add one to get started.
                     </div>
                 ) : (
                     <div className="space-y-2">
                     {schedules.map(s => (
                         <div
-                        key={s.id}
-                        onClick={() => handleSelectSchedule(s)}
-                        className={`p-3.5 rounded-lg border text-sm font-semibold flex items-center justify-between cursor-pointer transition ${
-                            selectedSchedule && selectedSchedule.id === s.id
-                            ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
-                            : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                        }`}
+                          key={s.id}
+                          onClick={() => handleSelectSchedule(s)}
+                          className={`p-3.5 rounded-lg border text-sm font-semibold flex items-center justify-between cursor-pointer transition ${
+                              selectedSchedule && selectedSchedule.id === s.id
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                          }`}
                         >
-                        <span className="min-w-0 truncate">{s.name}</span>
-                        <span
-                            title={getScheduleValidity(s).reason}
-                            className={`ml-2 shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            getScheduleValidity(s).isValid
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}
-                        >
-                            {getScheduleValidity(s).isValid ? 'VALID' : 'INCOMPLETE'}
-                        </span>
-                        <button
-                            onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSchedule(s.id, s.name);
-                            }}
-                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-white"
-                            title="Delete Schedule"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                          <span className="min-w-0 truncate">{s.name}</span>
+                          
+                          {/* 👇 Wrap the badge and button in a flex container 👇 */}
+                          <div className="flex items-center space-x-3">
+                            <span
+                                title={getScheduleValidity(s).reason}
+                                className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                getScheduleValidity(s).isValid
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-red-50 text-red-700 border-red-200'
+                                }`}
+                            >
+                                {getScheduleValidity(s).isValid ? 'COMPLETE' : 'INCOMPLETE'}
+                            </span>
+                            <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteSchedule(s.id, s.name);
+                                }}
+                                className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-white"
+                                title="Delete Schedule"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {/* 👆 End of wrapper 👆 */}
+
                         </div>
                     ))}
                     </div>

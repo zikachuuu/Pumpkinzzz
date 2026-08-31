@@ -1504,8 +1504,21 @@ export default function ProductTypeManager() {
           setPtModalError('');
         }}
       >
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed mb-4">
-          <strong>Notice:</strong> Newly created product types are initialized as <strong>[INVALID]</strong>. You must promptly configure schedules, milestones, and component lead times before this product type can be selected for projects.
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed mb-4">
+          <strong>Notice:</strong> Newly created product types are initialized as <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800 border border-red-200">INVALID</span>. 
+          You must promptly configure schedules, milestones, BOM, and procurement lead times before this product type can be selected for projects.
+          
+          <button
+            type="button"
+            onClick={() => setShowValidityModal(true)}
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition mt-3"
+            title="Learn more about Product Type status"
+          >
+            <span>Learn more about validity status here</span>
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold">
+              <Info className="w-3.5 h-3.5" />
+            </span>
+          </button>
         </p>
 
         {ptModalError && (
