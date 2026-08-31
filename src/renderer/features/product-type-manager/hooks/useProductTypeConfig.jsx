@@ -231,6 +231,35 @@ const handleSelectProductType = async (pt) => {
     }));
   };
 
+  const handleSaveLeadTimesForSchedule = async (scheduleId) => {
+    if (!selectedPt) return;
+    setIsDetailLoading(true);
+    
+    try {
+      const schedMilestones = await db.getMilestones(scheduleId);
+      const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id || schedMilestones[0]?.id;
+
+      for (const c of attachedComponents) {
+        const key = `${c.id}-${scheduleId}`;
+        const config = leadTimeSettings[key];
+        const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
+        const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
+
+        if (anchorId) {
+          await db.saveComponentSchedule(scheduleId, c.id, anchorId, leadTime);
+        }
+      }
+
+      await db.updateProductTypeStatus(selectedPt.id);
+      await refreshScheduleValidity(schedules, attachedComponents);
+      triggerAlert('success', 'Lead times saved successfully for this schedule!');
+    } catch (err) {
+      triggerAlert('error', `Failed to save lead times: ${err.message}`);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
   return {
     selectedPt, 
     activeTab, 
@@ -254,6 +283,7 @@ const handleSelectProductType = async (pt) => {
     handleSaveLeadTimes,
     refreshScheduleValidity,
     getScheduleValidity,
-    handleLeadTimeChange
+    handleLeadTimeChange,
+    handleSaveLeadTimesForSchedule
   };
 }

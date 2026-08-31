@@ -102,11 +102,11 @@ export default function App() {
           )}
 
           {activeTab === 'projectRegistry' && (
-            <ProjectRegistry onRedirectToTracker={() => setActiveTab('tracker')} dateFormat={dateFormat} />
+            <ProjectRegistry onRedirectToTracker={() => setActiveTab('projectTracker')} dateFormat={dateFormat} />
           )}
 
           {activeTab === 'projectTracker' && (
-            <ProjectTracker onRedirectToRegistry={() => setActiveTab('registry')} dateFormat={dateFormat} />
+            <ProjectTracker onRedirectToRegistry={() => setActiveTab('projectRegistry')} dateFormat={dateFormat} />
           )}
 
           {activeTab === 'settings' && (

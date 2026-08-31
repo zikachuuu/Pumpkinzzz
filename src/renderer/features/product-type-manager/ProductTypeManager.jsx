@@ -121,7 +121,8 @@ export default function ProductTypeManager() {
     handleSaveLeadTimes,
     refreshScheduleValidity,
     getScheduleValidity,
-    handleLeadTimeChange
+    handleLeadTimeChange,
+    handleSaveLeadTimesForSchedule
   } = useProductTypeConfig(triggerAlert);    
 
 
@@ -1109,14 +1110,15 @@ export default function ProductTypeManager() {
         {/* TAB 3: COMPONENT LEAD TIMES */}
         {activeTab === 'leadtimes' && (
           <LeadTimesTab 
-            schedules             = {schedules}
-            milestones            = {milestones}
-            attachedComponents    = {attachedComponents}
-            leadTimeSettings      = {leadTimeSettings}
-            handleLeadTimeChange  = {handleLeadTimeChange}
-            handleSaveLeadTimes   = {handleSaveLeadTimes}
-            scheduleValidity      = {scheduleValidity}
-            getScheduleValidity   = {getScheduleValidity}
+            schedules                       = {schedules}
+            milestones                      = {milestones}
+            attachedComponents              = {attachedComponents}
+            leadTimeSettings                = {leadTimeSettings}
+            handleLeadTimeChange            = {handleLeadTimeChange}
+            handleSaveLeadTimes             = {handleSaveLeadTimes}
+            scheduleValidity                = {scheduleValidity}
+            getScheduleValidity             = {getScheduleValidity}
+            handleSaveLeadTimesForSchedule  = {handleSaveLeadTimesForSchedule}
           />
         )}
 
