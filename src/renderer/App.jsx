@@ -33,25 +33,25 @@ export default function App() {
             Dashboard
           </button>
           <button
-            onClick={() => setActiveTab('productTypes')}
+            onClick={() => setActiveTab('productTypeManager')}
             className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'productTypes' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
+              activeTab === 'productTypeManager' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
             }`}
           >
             Product Type Manager
           </button>
           <button
-            onClick={() => setActiveTab('registry')}
+            onClick={() => setActiveTab('projectRegistry')}
             className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'registry' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
+              activeTab === 'projectRegistry' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
             }`}
           >
             Project Registry
           </button>
           <button
-            onClick={() => setActiveTab('tracker')}
+            onClick={() => setActiveTab('projectTracker')}
             className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'tracker' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
+              activeTab === 'projectTracker' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
             }`}
           >
             Project Tracker
@@ -97,15 +97,15 @@ export default function App() {
             <Dashboard dateFormat={dateFormat} />
           )}
 
-          {activeTab === 'productTypes' && (
+          {activeTab === 'productTypeManager' && (
             <ProductTypeManager />
           )}
 
-          {activeTab === 'registry' && (
+          {activeTab === 'projectRegistry' && (
             <ProjectRegistry onRedirectToTracker={() => setActiveTab('tracker')} dateFormat={dateFormat} />
           )}
 
-          {activeTab === 'tracker' && (
+          {activeTab === 'projectTracker' && (
             <ProjectTracker onRedirectToRegistry={() => setActiveTab('registry')} dateFormat={dateFormat} />
           )}
 
