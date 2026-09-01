@@ -22,10 +22,10 @@ import Modal from '../../components/ui/Modal';
 import { useProductType } from './hooks/useProductType';
 import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 
-import ScheduleMilestoneTab from './tabs/Schedule-Milestone';
-import BomTab from './tabs/BOM';
-import LeadTimesTab from './tabs/LeadTime';
-import ModalValidityStatusGuide from './components/Modal-ValidityStatusGuide';
+import ScheduleMilestoneTab from './views/Schedule-Milestone';
+import BomTab from './views/BOM';
+import LeadTimesTab from './views/LeadTime';
+import ModalValidityStatusGuide from './components/ValidityStatusGuide';
 
 export default function ProductTypeManager() {
   // State for Product Types Overview List

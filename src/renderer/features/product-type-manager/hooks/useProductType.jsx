@@ -1,27 +1,60 @@
 import { useState, useEffect } from 'react';
-import * as db from '../../../utils/db'; // Adjust path if necessary depending on folder depth
+import * as db from '../../../utils/db';
 
 /**
- * useProductTypeManager is a custom hook that encapsulates the logic for managing product types.
- * It provides state and functions for fetching, filtering, sorting, and performing CRUD operations on product types.
- * - CRUD operations include adding, renaming, deleting individual product types, and deleting all product types.
- *
- * @param {function} triggerAlert - A function to trigger alert messages in the UI.
- * @returns {object} - An object containing state variables and functions for managing product types.
+ * useProductType Hook - Product Type Management
  * 
- * State Variables:
- * - productTypes: Array of product type objects fetched from the database.
- * - searchTerm: String for filtering product types by name.
- * - statusFilter: String for filtering product types by status ('all', 'valid', 'invalid').
- * - sortBy: String indicating the current sorting criteria ('name', 'status', 'schedules', 'components').
- * - loading: Boolean indicating whether data is currently being fetched.
+ * This custom React hook provides complete functionality for managing product types in the application.
+ * A product type represents a category or template for products that can have associated schedules,
+ * milestones, and component configurations.
  * 
- * Functions:
- * - loadProductTypes: Fetches product types from the database and updates state.
- * - handleAddProductType: Adds a new product type to the database and refreshes the list.
- * - handleRenameProductType: Renames an existing product type in the database and refreshes the list.
- * - handleDeleteProductType: Deletes a specific product type from the database and refreshes the list.
- * - handleDeleteAllProductTypes: Deletes all product types from the database and refreshes the list.
+ * Core Responsibilities:
+ * - Fetching and storing product types from the database
+ * - Performing CRUD operations (Create, Read, Update, Delete) on product types
+ * - Filtering and sorting product types based on user preferences
+ * - Managing loading states and error handling with user alerts
+ * 
+ * State Management:
+ * The hook maintains five primary state variables. 
+ * - productTypes stores the array of all product type objects fetched from the database
+ * - searchTerm tracks the user's current search input to filter product types by name
+ * - statusFilter allows users to show only product types with a specific status (e.g., 'valid' or 'invalid'), with 'all' showing every status
+ * - sortBy controls which field is used for sorting (name, status, schedules, or components)
+ * - loading indicates whether data is currently being fetched from the database.
+ * 
+ * Data Loading:
+ * The loadProductTypes function is an asynchronous operation that fetches all product types from
+ * the database when the component first mounts. It sets the loading state to true during the fetch,
+ * updates the productTypes state with the retrieved data, and handles any errors by showing an
+ * alert to the user. A try-catch-finally block ensures the loading state is always reset to false
+ * when the operation completes, whether successful or not.
+ * 
+ * CRUD Operations:
+ * handleAddProductType creates a new product type after checking if one with the same name already
+ * exists. If a duplicate is found, an error is thrown. New product types are created in an 'INVALID'
+ * status, requiring users to configure schedules, milestones, and component lead times before use.
+ * 
+ * handleRenameProductType updates an existing product type's name in the database. After the update
+ * completes successfully, the product types list is reloaded to reflect the change.
+ * 
+ * handleDeleteProductType removes a single product type after confirming with the user. This operation
+ * cascades to delete all associated schedules, milestones, and project records. The function returns
+ * a boolean to indicate whether the deletion was actually completed (true if deleted, false if cancelled).
+ * 
+ * handleDeleteAllProductTypes provides a way to remove every product type at once, but requires
+ * two confirmation dialogs to prevent accidental mass deletion. This is useful for resetting the
+ * entire product type configuration.
+ * 
+ * Filtering and Sorting:
+ * filteredPtList is a derived state that applies both filtering and sorting to the product types array.
+ * The filtering step checks each product type against the current search term (case-insensitive name match)
+ * and status filter. The sorting step then arranges results based on the sortBy preference. When sorting
+ * by 'schedules' or 'components', it uses a numeric comparison (showing higher counts first), while
+ * 'name' and 'status' use alphabetical comparison.
+ * 
+ * The hook returns an object containing all state variables, their setter functions, loading status,
+ * the filtered and sorted product type list, and all handler functions for CRUD operations. This allows
+ * components that use this hook to have full control over product type management.
  */
 
 export function useProductType(triggerAlert) {
@@ -100,11 +133,11 @@ export function useProductType(triggerAlert) {
 
   // 4. Return everything the UI needs
   return {
-    productTypes, setProductTypes,
-    searchTerm, setSearchTerm,
-    statusFilter, setStatusFilter,
-    sortBy, setSortBy,
-    loading,
+    productTypes  , setProductTypes,
+    searchTerm    , setSearchTerm,
+    statusFilter  , setStatusFilter,
+    sortBy        , setSortBy,
+    loading       ,
     filteredPtList,
     loadProductTypes,
     handleAddProductType,

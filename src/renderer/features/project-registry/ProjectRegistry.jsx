@@ -7,7 +7,7 @@ import * as db from '../../utils/db';
 import { parseCSV, stringifyCSV } from '../../utils/csv';
 import Alert from '../../components/ui/Alert.jsx';
 import Modal from '../../components/ui/Modal.jsx';
-import ModalValidityStatusGuide from '../product-type-manager/components/Modal-ValidityStatusGuide.jsx';
+import ModalValidityStatusGuide from '../product-type-manager/components/ValidityStatusGuide.jsx';
 
 export default function ProjectRegistry({ onRedirectToTracker }) {
   // Global reference states
