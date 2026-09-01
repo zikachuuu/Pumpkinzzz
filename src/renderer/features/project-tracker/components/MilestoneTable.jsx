@@ -1,18 +1,19 @@
-import React from 'react';
-import { Calendar, Edit2 } from 'lucide-react';
-import { formatDate } from '../../../../utils/date';
-import { calculateMilestoneDeadlines } from '../../../../utils/scheduler';
+import React, { useState, useEffect } from 'react';
+import { Calendar } from 'lucide-react';
+import { formatDate } from '../../../utils/date';
+import { calculateMilestoneDeadlines } from '../../../utils/scheduler';
+import StatusBadge from '../../../components/ui/StatusBadge';
 
 export default function MilestoneTable({
   project, milestones, milestoneSort, setMilestoneSort, toggleTableSort,
-  editingActual, setEditingActual, handleActualDateUpdate, getMilestoneStatus, sortRows, dateFormat
+  handleActualDateUpdate, getMilestoneStatus, sortRows, dateFormat
 }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-3">
         <h4 className="font-bold text-gray-900 text-sm flex items-center space-x-2">
           <Calendar className="w-4 h-4 text-indigo-600" />
-          <span>Milestones Target Deadlines & Actual Progress</span>
+          <span>Milestones Target Deadlines</span>
         </h4>
         <select
           value={milestoneSort.key}
@@ -41,7 +42,10 @@ export default function MilestoneTable({
           </thead>
           <tbody className="divide-y divide-gray-200 text-gray-700">
             {(() => {
-              const deadlines = calculateMilestoneDeadlines(project, milestones);
+              // 👇 FIX 1: Pass a theoretical project to the scheduler so targets NEVER shift 👇
+              const theoreticalProject = { ...project, actual_dates: '{}' };
+              const deadlines = calculateMilestoneDeadlines(theoreticalProject, milestones);
+              
               const actuals = typeof project.actual_dates === 'string'
                 ? JSON.parse(project.actual_dates || '{}')
                 : (project.actual_dates || {});
@@ -57,23 +61,31 @@ export default function MilestoneTable({
 
               return sortedMilestones.map(m => {
                 const target = deadlines[m.id] || '-';
-                const actual = actuals[m.id] || '';
                 const isContractSigned = m.name.toLowerCase() === 'contract signed';
+                // Ensure Contract Signed uses the project date as its "actual" completion
+                const actual = isContractSigned ? project.contract_signed_date : (actuals[m.id] || '');
                 
-                let statusText = getMilestoneStatus(target, actual, today);
-                let statusColor = 'text-teal-600 bg-teal-50 border-teal-200';
-
-                if (isContractSigned) {
-                  statusText = 'Completed';
-                  statusColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-                } else if (statusText === 'Completed before deadline' || statusText === 'Completed after deadline') {
-                  statusColor = statusText === 'Completed before deadline' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-orange-600 bg-orange-50 border-orange-200';
-                } else if (statusText === 'Overdue') {
-                  statusColor = 'text-red-600 bg-red-50 border-red-200';
-                } else if (statusText === 'Very Urgent') {
-                  statusColor = 'text-orange-600 bg-orange-50 border-orange-200';
-                } else if (statusText === 'Urgent') {
-                  statusColor = 'text-amber-600 bg-amber-50 border-amber-200';
+                // Get standard base status (e.g., 'Completed before deadline')
+                const statusText = getMilestoneStatus(target, actual, today);
+                
+                // Formulate the detailed badge string
+                let badgeText = '';
+                if (actual && target && target !== '-') {
+                  const daysDiff = Math.ceil((new Date(actual) - new Date(target)) / (1000 * 60 * 60 * 24));
+                  if (daysDiff > 0) {
+                    badgeText = `COMPLETED (AFTER DEADLINE BY ${daysDiff} DAYS)`;
+                  } else {
+                    badgeText = `COMPLETED (BEFORE DEADLINE BY ${Math.abs(daysDiff)} DAYS)`;
+                  }
+                } else if (!actual && target && target !== '-') {
+                  const daysDiff = Math.ceil((new Date(target) - new Date(today)) / (1000 * 60 * 60 * 24));
+                  if (daysDiff < 0) {
+                    badgeText = `OVERDUE (BY ${Math.abs(daysDiff)} DAYS)`;
+                  } else {
+                    badgeText = `${statusText.toUpperCase()} (${daysDiff} DAYS LEFT)`;
+                  }
+                } else {
+                  badgeText = statusText.toUpperCase();
                 }
 
                 const anchor = milestones.find(a => a.id === m.anchor_id);
@@ -86,32 +98,61 @@ export default function MilestoneTable({
                     <td className="px-4 py-3">
                       {isContractSigned ? (
                         <span className="font-semibold text-gray-600">{formatDate(project.contract_signed_date, dateFormat)} (Locked)</span>
-                      ) : actual && editingActual !== `${project.tag_no}-${m.id}` ? (
-                        <span className="inline-flex items-center gap-2 font-semibold text-emerald-700">
-                          {formatDate(actual, dateFormat)}
-                          <button type="button" onClick={() => setEditingActual(`${project.tag_no}-${m.id}`)} className="p-1 text-gray-500 hover:text-indigo-600" title="Edit actual completion date"><Edit2 className="w-3.5 h-3.5" /></button>
-                        </span>
                       ) : (
-                        <input
-                          type="date"
-                          value={actual}
-                          onChange={(e) => handleActualDateUpdate(project.tag_no, m.id, e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-xs focus:border-indigo-500 focus:outline-none bg-white"
+                        <DateInputCell 
+                          initialValue={actual} 
+                          onSave={(val) => handleActualDateUpdate(project.tag_no, m.id, val)} 
                         />
                       )}
                     </td>
+                    
                     <td className="px-4 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusColor}`}>
-                        {statusText}
-                      </span>
+                      {isContractSigned ? (
+                        <span className="text-xs font-semibold text-gray-400">-</span>
+                      ) : (
+                        <StatusBadge 
+                          status={statusText} 
+                          textOverride={badgeText} 
+                        />
+                      )}
                     </td>
                   </tr>
                 );
               });
+
             })()}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+// 👇 Tiny helper component that traps typing locally and only saves to DB on blur 👇
+function DateInputCell({ initialValue, onSave }) {
+  const [value, setValue] = useState(initialValue || '');
+
+  // Keep local state synced if the database updates externally
+  useEffect(() => {
+    setValue(initialValue || '');
+  }, [initialValue]);
+
+  return (
+    <input
+      type="date"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => {
+        // Only hit the database if the user actually changed the date and clicked away
+        if (value !== (initialValue || '')) {
+          onSave(value);
+        }
+      }}
+      className={`px-2 py-1 border rounded text-xs focus:outline-none transition-colors ${
+        value 
+          ? 'border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500' 
+          : 'border-gray-300 text-gray-700 focus:border-indigo-500 bg-white'
+      }`}
+    />
   );
 }

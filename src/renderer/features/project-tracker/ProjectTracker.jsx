@@ -11,6 +11,7 @@ import { useProjectTracker } from './hooks/useProjectTracker';
 import MilestoneTable from './components/MilestoneTable';
 import ComponentTable from './components/ComponentTable';
 import EditProjectModal from './components/EditProjectModal';
+import StatusBadge from '../../components/ui/StatusBadge.jsx';
 
 export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   const {
@@ -21,7 +22,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
     editingActual, setEditingActual, editingProject, setEditingProject, editForm, setEditForm,
     urgencySettings, handleExportProjects, handleActualDateUpdate, handleActualReceivedUpdate,
     getMilestoneStatus, sortRows, toggleTableSort, handleDeleteProject, 
-    handleOpenEditModal, handleSaveEdit, getProjectStatusSummary, filteredProjects
+    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary, filteredProjects
   } = useProjectTracker();
 
   return (
@@ -121,7 +122,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
       ) : (
         <div className="space-y-4">
           {filteredProjects.map(p => {
-            const summary = getProjectStatusSummary(p);
+            const summary = getProjectDetailedSummary(p);
             const isExpanded = expandedProject === p.tag_no;
 
             return (
@@ -130,39 +131,31 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                 {/* Project Summary Card Bar */}
                 <div 
                   onClick={() => setExpandedProject(isExpanded ? null : p.tag_no)}
-                  className="p-6 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-gray-50/50 transition"
+                  className="p-6 flex flex-col gap-4 cursor-pointer select-none bg-white hover:bg-gray-50/50 transition"
                 >
-                  <div className="flex items-center space-x-6">
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tag No.</span>
-                      <h3 className="text-xl font-bold text-gray-900">{p.tag_no}</h3>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-6">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tag No.</span>
+                        <h3 className="text-xl font-bold text-gray-900">{p.tag_no}</h3>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer</span>
+                        <span className="text-sm font-semibold text-gray-800">{p.customer}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Product Type (Schedule)</span>
+                        <span className="text-xs font-medium text-gray-600">{p.product_type_name} ({p.schedule_name})</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Contract Signed</span>
+                        <span className="text-xs font-medium text-gray-600">{formatDate(p.contract_signed_date, dateFormat)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">ROS Deadline</span>
+                        <span className="text-sm font-semibold text-indigo-600">{formatDate(p.ros_date, dateFormat)}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer</span>
-                      <span className="text-sm font-semibold text-gray-800">{p.customer}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Product Type</span>
-                      <span className="text-xs font-medium text-gray-600">{p.product_type_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Description</span>
-                      <span className="text-xs font-medium text-gray-600">{p.description}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Contract Signed</span>
-                      <span className="text-xs font-medium text-gray-600">{formatDate(p.contract_signed_date, dateFormat)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">ROS Deadline</span>
-                      <span className="text-sm font-semibold text-indigo-600">{formatDate(p.ros_date, dateFormat)}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${summary.color}`}>
-                      {summary.status.toUpperCase()}
-                    </span>
 
                     <div className="flex items-center space-x-1">
                       <button
@@ -180,7 +173,40 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* New 2nd Line: Dynamic Status Breakdown */}
+                  <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
+                    
+                    {/* Milestones Row */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 shrink-0">
+                        Milestones
+                      </span>
+                      {getProjectDetailedSummary(p).filter(item => item.milestones > 0).map(item => (
+                        <StatusBadge key={`m-${item.status}`} status={item.status} count={item.milestones} />
+                      ))}
+                      {getProjectDetailedSummary(p).filter(item => item.milestones > 0).length === 0 && (
+                        <span className="text-xs font-semibold text-gray-400">None</span>
+                      )}
+                    </div>
+
+                    {/* Components Row */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 shrink-0">
+                        Components Procurement
+                      </span>
+                      {getProjectDetailedSummary(p).filter(item => item.components > 0).map(item => (
+                        <StatusBadge key={`c-${item.status}`} status={item.status} count={item.components} />
+                      ))}
+                      {getProjectDetailedSummary(p).filter(item => item.components > 0).length === 0 && (
+                        <span className="text-xs font-semibold text-gray-400">None</span>
+                      )}
+                    </div>
+
+                  </div>
+                
                 </div>
+
 
                 {/* Expanded Project Details */}
                 {isExpanded && (
@@ -211,7 +237,10 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                           </div>
                         ))}
                       </div>
-                      {p.notes && <p className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-600">Notes: {p.notes}</p>}
+                      <div>
+                      {<p className="mt-4 pt-3 border-t border-gray-100 text-[10px] uppercase font-bold text-gray-400">Notes </p>}
+                      {<p className="mt-1 text-xs font-semibold text-gray-700 whitespace-pre-line break-words">{p.notes || '-'}</p>}
+                      </div>
                     </section>
 
                     {/* MODULAR COMPONENT 1: Milestone Table */}

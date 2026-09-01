@@ -1,5 +1,5 @@
 import React from 'react';
-import Modal from '../../../../components/Modal'; // Adjust path if your generic Modal is elsewhere
+import Modal from '../../../components/ui/Modal'; 
 
 export default function EditProjectModal({ editingProject, setEditingProject, editForm, setEditForm, handleSaveEdit }) {
   if (!editingProject) return null;

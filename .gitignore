@@ -218,5 +218,11 @@ __marimo__/
 .streamlit/secrets.toml
 node_modules
 
-# Databases
+# SQLite databases
+*.sqlite
+*.sqlite3
 *.db
+
+# SQLite temporary journal and write-ahead log files
+*.db-shm
+*.db-wal

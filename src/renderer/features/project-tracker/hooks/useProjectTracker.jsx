@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import * as db from '../../../utils/db'; 
-import { calculateMilestoneDeadlines } from '../../../utils/scheduler';
 import { stringifyCSV } from '../../../utils/csv';
 import { getUrgencySettings } from '../../../utils/date';
+import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../../utils/scheduler';
 
 /**
  * useProjectTracker
@@ -55,7 +55,7 @@ import { getUrgencySettings } from '../../../utils/date';
  * 
  */
 
-export default function useProjectTracker() {
+export function useProjectTracker() {
   // Global reference states
   const [projects, setProjects] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
@@ -176,11 +176,9 @@ export default function useProjectTracker() {
       }
 
       await db.updateProjectActualDates(tagNo, JSON.stringify(actuals));
-      triggerAlert('success', `Actual date updated. Downstream milestone deadlines re-propagated.`);
       
       const updatedProjs = await db.getProjects();
       setProjects(updatedProjs);
-      setEditingActual(null);
     } catch (err) {
       triggerAlert('error', `Failed to update actual date: ${err.message}`);
     }
@@ -276,32 +274,62 @@ export default function useProjectTracker() {
     }
   };
 
-  const getProjectStatusSummary = (p) => {
+  const getProjectDetailedSummary = (p) => {
     const milestones = allMilestones[p.schedule_id] || [];
-    const milestoneDeadlines = calculateMilestoneDeadlines(p, milestones);
+    const compScheds = allComponentSchedules[p.schedule_id] || [];
+    
+    // We use a theoretical project to ensure deadlines don't shift when calculating summaries
+    const theoreticalProject = { ...p, actual_dates: '{}' };
+    const deadlines = calculateMilestoneDeadlines(theoreticalProject, milestones);
+    
+    const actuals = typeof p.actual_dates === 'string' ? JSON.parse(p.actual_dates || '{}') : (p.actual_dates || {});
+    const receivedDates = typeof p.actual_received_dates === 'string' ? JSON.parse(p.actual_received_dates || '{}') : (p.actual_received_dates || {});
     const today = new Date().toISOString().split('T')[0];
-    const actuals = typeof p.actual_dates === 'string'
-      ? JSON.parse(p.actual_dates || '{}')
-      : (p.actual_dates || {});
 
-    let overdueCount = 0;
-    let totalCount = 0;
-    let completedCount = 0;
+    const summaryMap = {};
+    const addStatus = (status, type) => {
+      if (!summaryMap[status]) summaryMap[status] = { milestones: 0, components: 0 };
+      summaryMap[status][type]++;
+    };
 
+    // Calculate Milestone Statuses
     milestones.forEach(m => {
-      totalCount++;
-      const isCompleted = actuals[m.id] !== undefined || m.name.toLowerCase() === 'contract signed';
-      if (isCompleted) {
-        completedCount++;
-      } else {
-        const target = milestoneDeadlines[m.id];
-        if (target && target < today) overdueCount++;
-      }
+      const isContractSigned = m.name.toLowerCase() === 'contract signed';
+      
+      // 👇 Skip Contract Signed so it doesn't inflate the summary counts
+      if (isContractSigned) return;
+
+      const target = deadlines[m.id] || null;
+      const actual = actuals[m.id] || null;
+      
+      let status = getMilestoneStatus(target, actual, today);
+      addStatus(status, 'milestones');
     });
 
-    if (completedCount === totalCount && totalCount > 0) return { status: 'Completed', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
-    if (overdueCount > 0) return { status: `${overdueCount} Overdue`, color: 'bg-red-100 text-red-800 border-red-200' };
-    return { status: 'On Track', color: 'bg-teal-100 text-teal-800 border-teal-200' };
+    // Calculate Component Statuses
+    const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents, urgencySettings);
+    computedComps.forEach(cc => {
+      const anchorM = milestones.find(m => m.id === cc.anchor_milestone_id);
+      const receivedDate = receivedDates[cc.component_id] || '';
+      let status;
+      
+      if (receivedDate) {
+        status = receivedDate <= cc.latest_order_date ? 'Completed before deadline' : 'Completed after deadline';
+      } else {
+        status = cc.urgency;
+      }
+      addStatus(status, 'components');
+    });
+
+    // Sort so critical alerts (Overdue) appear first
+    const statusOrder = ['Overdue', 'Very Urgent', 'Urgent', 'On Track', 'Completed before deadline', 'Completed after deadline'];
+    return Object.entries(summaryMap)
+      .sort((a, b) => {
+        const idxA = statusOrder.indexOf(a[0]);
+        const idxB = statusOrder.indexOf(b[0]);
+        return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
+      })
+      .map(([status, counts]) => ({ status, ...counts }));
   };
 
   const filteredProjects = projects
@@ -315,11 +343,15 @@ export default function useProjectTracker() {
 
       const matchPt = ptFilter === 'all' || p.product_type_id === parseInt(ptFilter);
       
-      const summary = getProjectStatusSummary(p);
-      const matchStatus = statusFilter === 'all' || 
-        (statusFilter === 'completed' && summary.status === 'Completed') ||
-        (statusFilter === 'overdue' && summary.status.includes('Overdue')) ||
-        (statusFilter === 'ontrack' && summary.status === 'On Track');
+      // Translate the new detailed summary array back to high-level filter states
+      const detailedSummary = getProjectDetailedSummary(p);
+      const isCompleted = detailedSummary.length > 0 && detailedSummary.every(item => item.status.includes('Completed'));
+      const isOverdue = detailedSummary.some(item => item.status === 'Overdue');
+      
+      let matchStatus = true;
+      if (statusFilter === 'completed') matchStatus = isCompleted;
+      else if (statusFilter === 'overdue') matchStatus = isOverdue;
+      else if (statusFilter === 'ontrack') matchStatus = !isCompleted && !isOverdue;
 
       return matchSearch && matchPt && matchStatus;
     })
@@ -338,8 +370,15 @@ export default function useProjectTracker() {
     sortBy, setSortBy, milestoneSort, setMilestoneSort, componentSort, setComponentSort,
     editingActual, setEditingActual, editingProject, setEditingProject, editForm, setEditForm,
     urgencySettings,
-    handleExportProjects, handleActualDateUpdate, handleActualReceivedUpdate,
-    getMilestoneStatus, sortRows, toggleTableSort, handleDeleteProject, 
-    handleOpenEditModal, handleSaveEdit, getProjectStatusSummary, filteredProjects
+    handleExportProjects, 
+    handleActualDateUpdate, 
+    handleActualReceivedUpdate,
+    getMilestoneStatus, 
+    sortRows, toggleTableSort, 
+    handleDeleteProject, 
+    handleOpenEditModal, 
+    handleSaveEdit, 
+    getProjectDetailedSummary,
+    filteredProjects
   };
 }
