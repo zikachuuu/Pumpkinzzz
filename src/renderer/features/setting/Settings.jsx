@@ -1,9 +1,10 @@
 import React from 'react';
-import { Calendar, Check, Clock } from 'lucide-react';
-import { DATE_FORMATS, DEFAULT_URGENCY_SETTINGS, formatDate, getUrgencySettings, setUrgencySettings } from '../../utils/date';
+import { Calendar, Check, Clock, CalendarDays, RotateCcw } from 'lucide-react';
+import { DATE_FORMATS, DEFAULT_URGENCY_SETTINGS, formatDate, getUrgencySettings, setUrgencySettings, getStartOfWeek, setStartOfWeek, resetPersistedSettings } from '../../utils/date';
 
 export default function Settings({ dateFormat, onDateFormatChange }) {
   const [urgencySettings, setUrgencySettingsState] = React.useState(getUrgencySettings);
+  const [startOfWeek, setStartOfWeekState] = React.useState(getStartOfWeek);
 
   const updateUrgencySetting = (key, value) => {
     const nextSettings = { ...urgencySettings, [key]: Math.max(0, Number(value) || 0) };
@@ -11,11 +12,33 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
     setUrgencySettings(nextSettings);
   };
 
+  const handleStartOfWeekChange = (val) => {
+    setStartOfWeekState(val);
+    setStartOfWeek(val);
+  };
+
+  const handleResetSettings = () => {
+    const defaultSettings = resetPersistedSettings();
+    setUrgencySettingsState(defaultSettings.urgencySettings);
+    setStartOfWeekState(defaultSettings.startOfWeek);
+    onDateFormatChange(defaultSettings.dateFormat);
+  };
+
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Settings</h2>
-        <p className="text-sm text-gray-500 mt-1">Manage display preferences for the local workspace.</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Settings</h2>
+          <p className="text-sm text-gray-500 mt-1">Manage display preferences for the local workspace.</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleResetSettings}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Reset settings
+        </button>
       </div>
 
       <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
@@ -37,6 +60,33 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
                     <span className="block text-xs text-gray-500 mt-1">Example: {formatDate('2026-08-26', format)}</span>
                   </span>
                   {dateFormat === format && <Check className="w-4 h-4 text-indigo-600" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* NEW: Start of Week Setting */}
+      <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <CalendarDays className="w-5 h-5 text-indigo-600 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-bold text-gray-900">Start of Week</h3>
+            <p className="text-xs text-gray-500 mt-1">Choose which day the week begins on for your Gantt Charts and Calendars.</p>
+            <div className="mt-4 flex gap-3">
+              {[
+                { label: 'Sunday', value: 0 },
+                { label: 'Monday', value: 1 }
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleStartOfWeekChange(opt.value)}
+                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition ${startOfWeek === opt.value ? 'border-indigo-500 bg-indigo-50 text-indigo-900' : 'border-gray-200 hover:bg-gray-50 text-gray-700'}`}
+                >
+                  {opt.label}
+                  {startOfWeek === opt.value && <Check className="w-4 h-4 text-indigo-600" />}
                 </button>
               ))}
             </div>

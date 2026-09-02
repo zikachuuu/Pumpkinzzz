@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath, content) => ipcRenderer.invoke('write-file-content', filePath, content),
+  readSettings: () => ipcRenderer.invoke('read-settings'),
+  writeSettings: (settings) => ipcRenderer.invoke('write-settings', settings),
 });

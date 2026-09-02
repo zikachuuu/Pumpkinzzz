@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Dashboard from './features/dashboard/Dashboard.jsx';
 import ProductTypeManager from './features/product-type-manager/ProductTypeManager.jsx';
 import ProjectRegistry from './features/project-registry/ProjectRegistry.jsx';
 import ProjectTracker from './features/project-tracker/ProjectTracker.jsx';
 import Settings from './features/setting/Settings.jsx';
-import { DATE_FORMATS, getStoredDateFormat, setStoredDateFormat } from './utils/date';
+import { DATE_FORMATS, getStoredDateFormat, setStoredDateFormat, syncSettingsFromJson } from './utils/date';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dateFormat, setDateFormat] = useState(getStoredDateFormat);
+
+  useEffect(() => {
+    syncSettingsFromJson().then((settings) => {
+      if (settings?.dateFormat) {
+        setDateFormat(settings.dateFormat);
+      }
+    });
+  }, []);
 
   const handleDateFormatChange = (format) => {
     const nextFormat = Object.values(DATE_FORMATS).includes(format) ? format : DATE_FORMATS.iso;

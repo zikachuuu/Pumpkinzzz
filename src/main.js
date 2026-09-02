@@ -8,6 +8,33 @@ let db;
 
 // Locate or create SQLite Database file in the project directory for portability
 const dbPath = path.join(__dirname, '..', 'pumpkinzzz.db');
+const settingsPath = path.join(__dirname, '..', 'settings.json');
+const defaultSettings = {
+  dateFormat: 'yyyy-mm-dd',
+  startOfWeek: 1,
+  urgencySettings: {
+    milestoneUrgentDays: 30,
+    milestoneVeryUrgentDays: 7,
+    componentUrgentDays: 30,
+    componentVeryUrgentDays: 7,
+  },
+};
+
+function ensureSettingsFile() {
+  try {
+    if (!fs.existsSync(settingsPath)) {
+      fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf-8');
+      return;
+    }
+
+    const content = fs.readFileSync(settingsPath, 'utf-8').trim();
+    if (!content) {
+      fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf-8');
+    }
+  } catch (error) {
+    console.error('Error ensuring settings file:', error);
+  }
+}
 
 function initDb() {
   db = new sqlite3.Database(dbPath, (err) => {
@@ -139,6 +166,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  ensureSettingsFile();
   initDb();
   createWindow();
 
@@ -208,4 +236,41 @@ ipcMain.handle('read-file-content', async (event, filePath) => {
 
 ipcMain.handle('write-file-content', async (event, filePath, content) => {
   return fs.promises.writeFile(filePath, content, 'utf-8');
+});
+
+ipcMain.handle('read-settings', async () => {
+  try {
+    const raw = await fs.promises.readFile(settingsPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultSettings,
+      ...parsed,
+      urgencySettings: {
+        ...defaultSettings.urgencySettings,
+        ...(parsed.urgencySettings || {}),
+      },
+    };
+  } catch (error) {
+    console.error('Error reading settings file:', error);
+    return defaultSettings;
+  }
+});
+
+ipcMain.handle('write-settings', async (event, settings) => {
+  try {
+    const nextSettings = {
+      ...defaultSettings,
+      ...settings,
+      urgencySettings: {
+        ...defaultSettings.urgencySettings,
+        ...(settings?.urgencySettings || {}),
+      },
+    };
+
+    await fs.promises.writeFile(settingsPath, JSON.stringify(nextSettings, null, 2), 'utf-8');
+    return nextSettings;
+  } catch (error) {
+    console.error('Error writing settings file:', error);
+    throw error;
+  }
 });
