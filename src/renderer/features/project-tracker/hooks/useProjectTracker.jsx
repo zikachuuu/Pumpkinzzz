@@ -4,59 +4,13 @@ import { stringifyCSV } from '../../../utils/csv';
 import { getUrgencySettings } from '../../../utils/date';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../../utils/scheduler';
 
-/**
- * useProjectTracker
- *
- * This custom React hook manages the project tracker data used by the Project Tracker feature.
- * Its job is to keep the UI in sync with data stored in the app database,
- * while also providing functions for searching, filtering, sorting, and common CRUD actions.
- * 
- * Why this exists:
- * - The component that displays project tracker data does not need to know how to fetch or update data directly.
- * - This hook centralizes all project tracker logic in one place.
- * - It makes components simpler and easier to reuse.
- * 
- * What it returns:
- * An object containing state values and functions that the UI can use:
- * 
- * State values:
- * - projects: all projects loaded from the database
- * - productTypes: all product types loaded from the database
- * - allSchedules: map of scheduleId to schedule objects
- * - allMilestones: map of scheduleId to array of milestone objects
- * - allComponentSchedules: map of scheduleId to array of component schedule configurations
- * - allComponents: list of all components
- * - loading: true while the data is being fetched
- * - expandedProject: tag_no of the currently expanded project in the UI
- * - alert: current alert message to display in the UI
- * 
- * Search and filter states:
- * - searchTerm: current search text entered by the user
- * - ptFilter: current selected product type filter
- * - statusFilter: current selected project status filter
- * - sortBy: current sorting option for projects
- * - milestoneSort: current sorting option for milestones
- * - componentSort: current sorting option for components
- * - editingActual: milestoneId of the currently editing actual date
- * 
- * Edit Modal State:
- * - editingProject: project object currently being edited
- * - editForm: form data for editing a project
- * 
- * Functions:
- * - triggerAlert(type, message): shows an alert message in the UI
- * - loadAllTrackerData(): fetches all tracker data from the database
- * - handleExportProjects(): exports project data to a CSV file
- * - handleActualDateUpdate(tagNo, milestoneId, dateStr): updates the actual date for a milestone
- * - handleActualReceivedUpdate(tagNo, componentId, dateStr): updates the actual received date for a component
- * - getMilestoneStatus(target, actual, today): returns the status of a milestone based on its target and actual dates
- * - sortRows(rows, sortState): sorts an array of rows based on the given sort state
- * - toggleTableSort(setter, key): toggles the sorting direction for a given key
- * 
- */
+// 1. Define standard statuses so dropdown options never jump around
+const ALL_STATUSES = [
+  'Overdue', 'Very Urgent', 'Urgent', 'On Track', 
+  'Completed Before Deadline', 'Completed After Deadline'
+];
 
 export function useProjectTracker() {
-  // Global reference states
   const [projects, setProjects] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [allSchedules, setSchedules] = useState({}); 
@@ -64,22 +18,23 @@ export function useProjectTracker() {
   const [allComponentSchedules, setComponentSchedules] = useState({}); 
   const [allComponents, setComponents] = useState([]); 
 
-  // UI state
   const [loading, setLoading] = useState(true);
   const [expandedProject, setExpandedProject] = useState(null); 
   const [alert, setAlert] = useState(null);
   
-  // Search and filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [ptFilter, setPtFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all'); 
-  const [sortBy, setSortBy] = useState('tag_no');
+  
+  // 2. Initialize status filters with ALL options selected by default
+  const [ptFilter, setPtFilter] = useState([]); 
+  const [milestoneStatusFilter, setMilestoneStatusFilter] = useState(ALL_STATUSES);
+  const [componentStatusFilter, setComponentStatusFilter] = useState(ALL_STATUSES);
+  
+  const [sortBy, setSortBy] = useState('tag_no-asc');
   const [milestoneSort, setMilestoneSort] = useState({ key: 'target', direction: 'asc' });
   const [componentSort, setComponentSort] = useState({ key: 'latest', direction: 'asc' });
   const [editingActual, setEditingActual] = useState(null);
   const urgencySettings = getUrgencySettings();
 
-  // Edit Modal State
   const [editingProject, setEditingProject] = useState(null);
   const [editForm, setEditForm] = useState({});
 
@@ -100,6 +55,8 @@ export function useProjectTracker() {
 
       const pts = await db.getProductTypes();
       setProductTypes(pts);
+      // 3. Initialize Product Type filter with ALL product type IDs on load
+      setPtFilter(pts.map(pt => String(pt.id))); 
 
       const comps = await db.getComponents();
       setComponents(comps);
@@ -164,19 +121,10 @@ export function useProjectTracker() {
     try {
       const proj = projects.find(p => p.tag_no === tagNo);
       if (!proj) return;
-
-      const actuals = typeof proj.actual_dates === 'string'
-        ? JSON.parse(proj.actual_dates || '{}')
-        : (proj.actual_dates || {});
-
-      if (dateStr) {
-        actuals[milestoneId] = dateStr;
-      } else {
-        delete actuals[milestoneId];
-      }
-
+      const actuals = typeof proj.actual_dates === 'string' ? JSON.parse(proj.actual_dates || '{}') : (proj.actual_dates || {});
+      if (dateStr) actuals[milestoneId] = dateStr;
+      else delete actuals[milestoneId];
       await db.updateProjectActualDates(tagNo, JSON.stringify(actuals));
-      
       const updatedProjs = await db.getProjects();
       setProjects(updatedProjs);
     } catch (err) {
@@ -188,9 +136,7 @@ export function useProjectTracker() {
     try {
       const project = projects.find(item => item.tag_no === tagNo);
       if (!project) return;
-      const receivedDates = typeof project.actual_received_dates === 'string'
-        ? JSON.parse(project.actual_received_dates || '{}')
-        : (project.actual_received_dates || {});
+      const receivedDates = typeof project.actual_received_dates === 'string' ? JSON.parse(project.actual_received_dates || '{}') : (project.actual_received_dates || {});
       if (dateStr) receivedDates[componentId] = dateStr;
       else delete receivedDates[componentId];
       await db.updateProjectActualReceivedDates(tagNo, JSON.stringify(receivedDates));
@@ -225,7 +171,6 @@ export function useProjectTracker() {
     if (!confirm(`Are you sure you want to delete project with Tag No "${tagNo}"? This action cannot be undone.`)) {
       return;
     }
-
     try {
       await db.deleteProject(tagNo);
       triggerAlert('success', 'Project record deleted successfully.');
@@ -241,21 +186,12 @@ export function useProjectTracker() {
   const handleOpenEditModal = (p) => {
     setEditingProject(p);
     setEditForm({
-      tag_no: p.tag_no,
-      description: p.description,
-      product_type_id: p.product_type_id,
-      schedule_id: p.schedule_id,
-      customer: p.customer,
-      contract_no: p.contract_no,
-      sales_ref: p.sales_ref,
-      pm_owner: p.pm_owner,
-      engineer_owner: p.engineer_owner,
-      procurement_owner: p.procurement_owner,
-      production_owner: p.production_owner,
-      fat_owner: p.fat_owner,
-      contract_signed_date: p.contract_signed_date,
-      ros_date: p.ros_date,
-      notes: p.notes
+      tag_no: p.tag_no, description: p.description, product_type_id: p.product_type_id,
+      schedule_id: p.schedule_id, customer: p.customer, contract_no: p.contract_no,
+      sales_ref: p.sales_ref, pm_owner: p.pm_owner, engineer_owner: p.engineer_owner,
+      procurement_owner: p.procurement_owner, production_owner: p.production_owner,
+      fat_owner: p.fat_owner, contract_signed_date: p.contract_signed_date,
+      ros_date: p.ros_date, notes: p.notes
     });
   };
 
@@ -278,7 +214,6 @@ export function useProjectTracker() {
     const milestones = allMilestones[p.schedule_id] || [];
     const compScheds = allComponentSchedules[p.schedule_id] || [];
     
-    // We use a theoretical project to ensure deadlines don't shift when calculating summaries
     const theoreticalProject = { ...p, actual_dates: '{}' };
     const deadlines = calculateMilestoneDeadlines(theoreticalProject, milestones);
     
@@ -292,11 +227,8 @@ export function useProjectTracker() {
       summaryMap[status][type]++;
     };
 
-    // Calculate Milestone Statuses
     milestones.forEach(m => {
       const isContractSigned = m.name.toLowerCase() === 'contract signed';
-      
-      // 👇 Skip Contract Signed so it doesn't inflate the summary counts
       if (isContractSigned) return;
 
       const target = deadlines[m.id] || null;
@@ -306,10 +238,8 @@ export function useProjectTracker() {
       addStatus(status, 'milestones');
     });
 
-    // Calculate Component Statuses
     const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents, urgencySettings);
     computedComps.forEach(cc => {
-      const anchorM = milestones.find(m => m.id === cc.anchor_milestone_id);
       const receivedDate = receivedDates[cc.component_id] || '';
       let status;
       
@@ -321,7 +251,6 @@ export function useProjectTracker() {
       addStatus(status, 'components');
     });
 
-    // Sort so critical alerts (Overdue) appear first
     const statusOrder = ['Overdue', 'Very Urgent', 'Urgent', 'On Track', 'Completed before deadline', 'Completed after deadline'];
     return Object.entries(summaryMap)
       .sort((a, b) => {
@@ -332,6 +261,10 @@ export function useProjectTracker() {
       .map(([status, counts]) => ({ status, ...counts }));
   };
 
+  // Provide static standard options so the dropdown doesn't flicker/resize
+  const milestoneStatuses = ALL_STATUSES;
+  const componentStatuses = ALL_STATUSES;
+
   const filteredProjects = projects
     .filter(p => {
       const query = searchTerm.toLowerCase();
@@ -341,32 +274,47 @@ export function useProjectTracker() {
         p.pm_owner.toLowerCase().includes(query) ||
         p.engineer_owner.toLowerCase().includes(query);
 
-      const matchPt = ptFilter === 'all' || p.product_type_id === parseInt(ptFilter);
+      // 4. STRICT FILTERING: Removes the "length === 0" bypass
+      const matchPt = ptFilter.includes(String(p.product_type_id));
       
-      // Translate the new detailed summary array back to high-level filter states
       const detailedSummary = getProjectDetailedSummary(p);
-      const isCompleted = detailedSummary.length > 0 && detailedSummary.every(item => item.status.includes('Completed'));
-      const isOverdue = detailedSummary.some(item => item.status === 'Overdue');
       
-      let matchStatus = true;
-      if (statusFilter === 'completed') matchStatus = isCompleted;
-      else if (statusFilter === 'overdue') matchStatus = isOverdue;
-      else if (statusFilter === 'ontrack') matchStatus = !isCompleted && !isOverdue;
+      // If a project has 0 tracking items, it shouldn't fail the filter.
+      // If it DOES have tracking items, at least one status must be selected in the dropdown.
+      const milestoneItems = detailedSummary.filter(item => item.milestones > 0);
+      const matchMilestoneStatus = milestoneItems.length === 0 || 
+        milestoneItems.some(item => milestoneStatusFilter.includes(item.status));
+        
+      const componentItems = detailedSummary.filter(item => item.components > 0);
+      const matchComponentStatus = componentItems.length === 0 || 
+        componentItems.some(item => componentStatusFilter.includes(item.status));
 
-      return matchSearch && matchPt && matchStatus;
+      return matchSearch && matchPt && matchMilestoneStatus && matchComponentStatus;
     })
     .sort((a, b) => {
-      if (sortBy === 'tag_no') return a.tag_no.localeCompare(b.tag_no);
-      if (sortBy === 'ros_date') return a.ros_date.localeCompare(b.ros_date);
-      if (sortBy === 'contract_signed_date') return a.contract_signed_date.localeCompare(b.contract_signed_date);
-      if (sortBy === 'customer') return a.customer.localeCompare(b.customer);
-      return 0;
+      const [sortKey, direction] = sortBy.split('-');
+      const multiplier = direction === 'desc' ? -1 : 1;
+      const compareText = (first, second) => String(first || '').localeCompare(String(second || ''), undefined, { sensitivity: 'base', numeric: true });
+      const compareDate = (first, second) => String(first || '9999-12-31').localeCompare(String(second || '9999-12-31'));
+      let result;
+
+      if (sortKey === 'contract_signed_date' || sortKey === 'ros_date') {
+        result = compareDate(a[sortKey], b[sortKey]);
+      } else {
+        result = compareText(a[sortKey], b[sortKey]);
+        if (result === 0 && sortKey === 'product_type_name') {
+          result = compareText(a.schedule_name, b.schedule_name);
+        }
+      }
+
+      return result * multiplier;
     });
 
   return {
     projects, productTypes, allSchedules, allMilestones, allComponentSchedules, allComponents,
     loading, expandedProject, setExpandedProject, alert,
-    searchTerm, setSearchTerm, ptFilter, setPtFilter, statusFilter, setStatusFilter, 
+    searchTerm, setSearchTerm, ptFilter, setPtFilter, milestoneStatusFilter, setMilestoneStatusFilter,
+    componentStatusFilter, setComponentStatusFilter, milestoneStatuses, componentStatuses,
     sortBy, setSortBy, milestoneSort, setMilestoneSort, componentSort, setComponentSort,
     editingActual, setEditingActual, editingProject, setEditingProject, editForm, setEditForm,
     urgencySettings,

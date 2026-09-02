@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { formatDate } from '../../../utils/date';
 import { calculateMilestoneDeadlines } from '../../../utils/scheduler';
@@ -8,6 +8,14 @@ export default function MilestoneTable({
   project, milestones, milestoneSort, setMilestoneSort, toggleTableSort,
   handleActualDateUpdate, getMilestoneStatus, sortRows, dateFormat
 }) {
+  const sortKey = milestoneSort.key === 'statusText' ? 'status' : milestoneSort.key;
+  const sortValue = `${sortKey}-${milestoneSort.direction}`;
+
+  const handleSortChange = (event) => {
+    const [key, direction] = event.target.value.split('-');
+    setMilestoneSort({ key, direction });
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -15,18 +23,27 @@ export default function MilestoneTable({
           <Calendar className="w-4 h-4 text-indigo-600" />
           <span>Milestones Target Deadlines</span>
         </h4>
-        <select
-          value={milestoneSort.key}
-          onChange={(e) => toggleTableSort(setMilestoneSort, e.target.value)}
-          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
-          title="Sort milestone table"
-        >
-          <option value="name">Sort: Milestone</option>
-          <option value="anchor">Sort: Anchor</option>
-          <option value="target">Sort: Target date</option>
-          <option value="actual">Sort: Actual date</option>
-          <option value="statusText">Sort: Status</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <label htmlFor="milestone-sort" className="text-xs font-semibold text-gray-600">Sort by</label>
+          <select
+            id="milestone-sort"
+            value={sortValue}
+            onChange={handleSortChange}
+            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+            title="Sort milestone table"
+          >
+            <option value="name-asc">Milestone (A → Z)</option>
+            <option value="name-desc">Milestone (Z → A)</option>
+            <option value="anchor-asc">Anchor (A → Z)</option>
+            <option value="anchor-desc">Anchor (Z → A)</option>
+            <option value="target-asc">Targeted Deadline (Earliest First)</option>
+            <option value="target-desc">Targeted Deadline (Latest First)</option>
+            <option value="actual-asc">Actual Completion (Earliest First)</option>
+            <option value="actual-desc">Actual Completion (Latest First)</option>
+            <option value="status-asc">Status (Overdue → Complete)</option>
+            <option value="status-desc">Status (Complete → Overdue)</option>
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
@@ -34,10 +51,10 @@ export default function MilestoneTable({
           <thead className="bg-gray-50 font-bold text-gray-500">
             <tr>
               <th className="px-4 py-3 text-left">Milestone</th>
-              <th className="px-4 py-3 text-left">Anchor Basis</th>
+              <th className="px-4 py-3 text-left">Anchor Milestone</th>
               <th className="px-4 py-3 text-left">Targeted Deadline</th>
               <th className="px-4 py-3 text-left">Actual Completion Date</th>
-              <th className="px-4 py-3 text-left">Status / Countdown</th>
+              <th className="px-4 py-3 text-left">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-gray-700">
@@ -51,12 +68,12 @@ export default function MilestoneTable({
                 : (project.actual_dates || {});
               const today = new Date().toISOString().split('T')[0];
 
-              const sortedMilestones = sortRows(milestones.map(m => ({
+              const sortedMilestones = sortMilestones(milestones.map(m => ({
                 ...m,
                 anchor: milestones.find(a => a.id === m.anchor_id)?.name,
                 target: deadlines[m.id],
                 actual: actuals[m.id],
-                statusText: actuals[m.id] ? 'Completed' : deadlines[m.id] < today ? 'Overdue' : 'On Track'
+                status: actuals[m.id] ? 'Complete' : deadlines[m.id] < today ? 'Overdue' : 'On Track'
               })), milestoneSort);
 
               return sortedMilestones.map(m => {
@@ -93,7 +110,7 @@ export default function MilestoneTable({
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{isContractSigned || !anchor ? 'Root Boundary' : anchor.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{isContractSigned || !anchor ? '-' : anchor.name}</td>
                     <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(target, dateFormat)}</td>
                     <td className="px-4 py-3">
                       {isContractSigned ? (
@@ -127,6 +144,39 @@ export default function MilestoneTable({
       </div>
     </div>
   );
+}
+
+function sortMilestones(rows, sortState) {
+  const direction = sortState.direction === 'desc' ? -1 : 1;
+  const statusOrder = {
+    overdue: 0,
+    'very urgent': 1,
+    urgent: 2,
+    'on track': 3,
+    complete: 4
+  };
+
+  const compareText = (first, second) => String(first ?? '').localeCompare(String(second ?? ''), undefined, { sensitivity: 'base' });
+  const compareDate = (first, second) => String(first ?? '9999-12-31').localeCompare(String(second ?? '9999-12-31'));
+
+  return [...rows].sort((first, second) => {
+    let result;
+
+    if (sortState.key === 'status' || sortState.key === 'statusText') {
+      result = (statusOrder[String(first.status).toLowerCase()] ?? 99) - (statusOrder[String(second.status).toLowerCase()] ?? 99);
+      if (result === 0) result = compareDate(first.target, second.target);
+    } else if (sortState.key === 'actual') {
+      result = compareDate(first.actual || first.target, second.actual || second.target);
+    } else if (sortState.key === 'target') {
+      result = compareDate(first.target, second.target);
+    } else if (sortState.key === 'name' || sortState.key === 'anchor') {
+      result = compareText(first[sortState.key], second[sortState.key]);
+    } else {
+      result = compareText(first[sortState.key], second[sortState.key]);
+    }
+
+    return result === 0 ? compareDate(first.target, second.target) * direction : result * direction;
+  });
 }
 
 function DateInputCell({ initialValue, onSave, dateFormat }) {
@@ -164,7 +214,7 @@ function DateInputCell({ initialValue, onSave, dateFormat }) {
       onFocus={() => setIsEditing(true)}
       className={`px-2 py-1 border rounded text-xs cursor-text transition-colors flex items-center min-w-[100px] h-[26px] ${
         value 
-          ? 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100' 
+          ? 'border-gray-300 text-gray-700 font-semibold bg-gray-50 hover:bg-gray-50' 
           : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
       }`}
     >

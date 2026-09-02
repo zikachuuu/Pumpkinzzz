@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Trash2, Edit2, ChevronDown, ChevronUp, Download, 
   RefreshCw, Layers, Plus
@@ -13,17 +13,95 @@ import ComponentTable from './components/ComponentTable';
 import EditProjectModal from './components/EditProjectModal';
 import StatusBadge from '../../components/ui/StatusBadge.jsx';
 
+// 1. Fully Refactored Checklist Filter
+function ChecklistFilter({ label, options, selected, onChange, isOpen, onToggle, className = 'w-full' }) {
+  const dropdownRef = useRef(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        if (isOpen) onToggle(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onToggle]);
+
+  const selectedArray = Array.isArray(selected) ? selected : [];
+  const allSelected = options.length > 0 && selectedArray.length === options.length;
+
+  const toggleValue = (value) => {
+    if (selectedArray.includes(value)) {
+      onChange(selectedArray.filter(item => item !== value));
+    } else {
+      onChange([...selectedArray, value]);
+    }
+  };
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => onToggle(!isOpen)}
+        className={`flex w-full cursor-pointer items-center justify-between rounded border bg-white px-2 py-1 text-xs transition-colors focus:outline-none ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-300 hover:border-gray-400'}`}
+      >
+        <span className="whitespace-nowrap text-gray-700">
+          <span className="font-semibold">{allSelected ? 'All' : `${selectedArray.length} selected`}</span>
+        </span>
+        <ChevronDown className={`ml-2 h-4 w-4 shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+          <button
+            type="button"
+            onClick={() => {
+              // 2. Fixed Select/Unselect All Logic
+              if (allSelected) {
+                onChange([]); 
+              } else {
+                onChange(options.map(o => o.value)); 
+              }
+            }}
+            className="mb-2 w-full rounded px-2 py-1.5 text-left text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+          >
+            {allSelected ? 'Unselect all' : 'Select all'}
+          </button>
+          {options.length === 0 ? (
+            <p className="px-2 py-2 text-xs text-gray-400">No options available</p>
+          ) : options.map(option => (
+            <label key={option.value} className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={selectedArray.includes(option.value)}
+                onChange={() => toggleValue(option.value)}
+                className="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="leading-tight">{option.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
   const {
     projects, productTypes, allMilestones, allComponentSchedules, allComponents,
     loading, expandedProject, setExpandedProject, alert,
-    searchTerm, setSearchTerm, ptFilter, setPtFilter, statusFilter, setStatusFilter, 
+    searchTerm, setSearchTerm, ptFilter, setPtFilter, milestoneStatusFilter, setMilestoneStatusFilter,
+    componentStatusFilter, setComponentStatusFilter, milestoneStatuses, componentStatuses,
     sortBy, setSortBy, milestoneSort, setMilestoneSort, componentSort, setComponentSort,
     editingActual, setEditingActual, editingProject, setEditingProject, editForm, setEditForm,
     urgencySettings, handleExportProjects, handleActualDateUpdate, handleActualReceivedUpdate,
     getMilestoneStatus, sortRows, toggleTableSort, handleDeleteProject, 
     handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary, filteredProjects
   } = useProjectTracker();
+
+  // 3. New State to ensure only ONE dropdown opens at a time
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
   return (
     <div className="space-y-6">
@@ -58,52 +136,78 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
       <Alert alert={alert} />
 
       {/* Search and Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-        <div className="md:col-span-2 relative">
+      <div className="flex flex-col xl:flex-row xl:items-center gap-4 xl:gap-8 bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+        
+        <div className="relative min-w-0 flex-1">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search Tag No, Customer, PM, Engineer..."
-            className="pl-10 pr-4 py-2.5 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none"
+            className="pl-10 pr-4 py-2.5 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
           />
         </div>
-        <div>
-          <select
-            value={ptFilter}
-            onChange={(e) => setPtFilter(e.target.value)}
-            className="py-2.5 px-3 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none bg-white"
-          >
-            <option value="all">All Product Types</option>
-            {productTypes.map(pt => (
-              <option key={pt.id} value={pt.id}>{pt.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="py-2.5 px-3 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none bg-white"
-          >
-            <option value="all">All Statuses</option>
-            <option value="ontrack">On Track</option>
-            <option value="overdue">Has Overdue</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-        <div>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="py-2.5 px-3 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none bg-white"
-          >
-            <option value="tag_no">Sort by Tag No</option>
-            <option value="ros_date">Sort by ROS Date</option>
-            <option value="contract_signed_date">Sort by Contract Signed</option>
-            <option value="customer">Sort by Customer</option>
-          </select>
+        
+        <div className="flex flex-wrap items-center justify-end gap-3 xl:flex-nowrap">
+          <span className="shrink-0 text-[11px] font-semibold text-gray-600">Filter by</span>
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold leading-none text-gray-600">Product Type</span>
+              <ChecklistFilter
+                label="Product Type"
+                className="w-[120px] shrink-0"
+                options={productTypes.map(productType => ({ value: String(productType.id), label: productType.name }))}
+                selected={ptFilter}
+                onChange={setPtFilter}
+                isOpen={activeDropdown === 'product'}
+                onToggle={(isOpen) => setActiveDropdown(isOpen ? 'product' : null)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold leading-none text-gray-600">Milestone Status</span>
+              <ChecklistFilter
+                label="Milestone Status"
+                className="w-[155px] shrink-0"
+                options={milestoneStatuses.map(status => ({ value: status, label: status }))}
+                selected={milestoneStatusFilter}
+                onChange={setMilestoneStatusFilter}
+                isOpen={activeDropdown === 'milestones'}
+                onToggle={(isOpen) => setActiveDropdown(isOpen ? 'milestones' : null)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold leading-none text-gray-600">Procurement Status</span>
+              <ChecklistFilter
+                label="Procurement Status"
+                className="w-[155px] shrink-0"
+                options={componentStatuses.map(status => ({ value: status, label: status }))}
+                selected={componentStatusFilter}
+                onChange={setComponentStatusFilter}
+                isOpen={activeDropdown === 'components'}
+                onToggle={(isOpen) => setActiveDropdown(isOpen ? 'components' : null)}
+              />
+            </div>
+          </div>
+          <div className="ml-3 flex items-center gap-2">
+            <span className="shrink-0 text-[11px] font-semibold text-gray-600">Sort by</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="block w-[185px] rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition-colors focus:border-indigo-500 focus:outline-none cursor-pointer"
+            >
+            <option value="tag_no-asc">Tag No (A → Z)</option>
+            <option value="tag_no-desc">Tag No (Z → A)</option>
+            <option value="customer-asc">Customer (A → Z)</option>
+            <option value="customer-desc">Customer (Z → A)</option>
+            <option value="product_type_name-asc">Product Type (A → Z)</option>
+            <option value="product_type_name-desc">Product Type (Z → A)</option>
+            <option value="contract_signed_date-asc">Contract Signed (Earliest)</option>
+            <option value="contract_signed_date-desc">Contract Signed (Latest)</option>
+            <option value="ros_date-asc">ROS Deadline (Earliest)</option>
+            <option value="ros_date-desc">ROS Deadline (Latest)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -117,7 +221,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
         <div className="p-16 text-center text-gray-400 bg-white rounded-lg border border-gray-200 shadow-sm">
           <Layers className="w-12 h-12 mx-auto mb-4 text-gray-300" />
           <p className="font-semibold text-sm">No registered projects found.</p>
-          <p className="text-xs text-gray-400 mt-1">Register a project manually or upload via bulk CSV to begin tracking.</p>
+          <p className="text-xs text-gray-400 mt-1">Adjust your search/filters, or register a project to begin tracking.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -174,7 +278,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                     </div>
                   </div>
 
-                  {/* New 2nd Line: Dynamic Status Breakdown */}
+                  {/* Dynamic Status Breakdown */}
                   <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
                     
                     {/* Milestones Row */}

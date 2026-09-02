@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Clock } from 'lucide-react';
 import { formatDate } from '../../../utils/date';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../../utils/scheduler';
@@ -8,6 +8,14 @@ export default function ComponentTable({
   project, milestones, compScheds, allComponents, componentSort, setComponentSort,
   toggleTableSort, handleActualReceivedUpdate, sortRows, dateFormat, urgencySettings
 }) {
+  const sortKey = componentSort.key === 'urgency' ? 'status' : componentSort.key;
+  const sortValue = `${sortKey}-${componentSort.direction}`;
+
+  const handleSortChange = (event) => {
+    const [key, direction] = event.target.value.split('-');
+    setComponentSort({ key, direction });
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -15,18 +23,29 @@ export default function ComponentTable({
           <Clock className="w-4 h-4 text-indigo-600" />
           <span>Component Procurement Target Deadlines</span>
         </h4>
-        <select
-          value={componentSort.key}
-          onChange={(e) => toggleTableSort(setComponentSort, e.target.value)}
-          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
-          title="Sort component table"
-        >
-          <option value="name">Sort: Component</option>
-          <option value="anchor">Sort: Anchor</option>
-          <option value="lead_time">Sort: Lead time</option>
-          <option value="latest">Sort: Latest order date</option>
-          <option value="urgency">Sort: Urgency</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <label htmlFor="component-sort" className="text-xs font-semibold text-gray-600">Sort by</label>
+          <select
+            id="component-sort"
+            value={sortValue}
+            onChange={handleSortChange}
+            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+            title="Sort component table"
+          >
+            <option value="name-asc">Component (A → Z)</option>
+            <option value="name-desc">Component (Z → A)</option>
+            <option value="anchor-asc">Anchor (A → Z)</option>
+            <option value="anchor-desc">Anchor (Z → A)</option>
+            <option value="lead_time-asc">Lead Time (Lowest First)</option>
+            <option value="lead_time-desc">Lead Time (Highest First)</option>
+            <option value="latest-asc">Latest Order Date (Earliest First)</option>
+            <option value="latest-desc">Latest Order Date (Latest First)</option>
+            <option value="actual-asc">Actual Order Date (Earliest First)</option>
+            <option value="actual-desc">Actual Order Date (Latest First)</option>
+            <option value="status-asc">Status (Overdue → Complete)</option>
+            <option value="status-desc">Status (Complete → Overdue)</option>
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
@@ -35,10 +54,10 @@ export default function ComponentTable({
             <tr>
               <th className="px-4 py-3 text-left">Component Name</th>
               <th className="px-4 py-3 text-left">Anchor Milestone</th>
-              <th className="px-4 py-3 text-left">Lead Time (Days)</th>
+              <th className="px-4 py-3 text-left">Lead Time</th>
               <th className="px-4 py-3 text-left">Latest Order Date</th>
-              <th className="px-4 py-3 text-left">Actual Received Date</th>
-              <th className="px-4 py-3 text-left">Urgency Status</th>
+              <th className="px-4 py-3 text-left">Actual Order Date</th>
+              <th className="px-4 py-3 text-left">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-gray-700">
@@ -62,15 +81,24 @@ export default function ComponentTable({
                 );
               }
 
-              const urgencyColors = {
-                'Overdue': 'text-red-700 bg-red-100 border-red-200',
-                'Very Urgent': 'text-orange-700 bg-orange-100 border-orange-200',
-                'Urgent': 'text-amber-700 bg-amber-100 border-amber-200',
-                'On Track': 'text-emerald-700 bg-emerald-100 border-emerald-200',
-                'Pending': 'text-gray-600 bg-gray-100 border-gray-200'
-              };
+              const componentRows = computedComps.map(cc => {
+                const receivedDate = receivedDates[cc.component_id] || '';
+                const componentDeadline = cc.latest_order_date;
+                const status = receivedDate
+                  ? receivedDate <= componentDeadline
+                    ? 'Completed before deadline'
+                    : 'Completed after deadline'
+                  : cc.urgency;
 
-              const sortedComponents = sortRows(computedComps.map(cc => ({ ...cc, anchor: milestones.find(m => m.id === cc.anchor_milestone_id)?.name, latest: cc.latest_order_date })), componentSort);
+                return {
+                  ...cc,
+                  anchor: milestones.find(m => m.id === cc.anchor_milestone_id)?.name,
+                  latest: cc.latest_order_date,
+                  actual: receivedDate,
+                  status
+                };
+              });
+              const sortedComponents = sortComponents(componentRows, componentSort);
               
               return sortedComponents.map(cc => {
                 const anchorM = milestones.find(m => m.id === cc.anchor_milestone_id);
@@ -132,6 +160,47 @@ export default function ComponentTable({
   );
 }
 
+function sortComponents(rows, sortState) {
+  const direction = sortState.direction === 'desc' ? -1 : 1;
+  const statusOrder = {
+    overdue: 0,
+    'very urgent': 1,
+    urgent: 2,
+    pending: 3,
+    'on track': 4,
+    'completed before deadline': 5,
+    'completed after deadline': 5
+  };
+  const compareText = (first, second) => String(first ?? '').localeCompare(String(second ?? ''), undefined, { sensitivity: 'base', numeric: true });
+  const compareDate = (first, second) => {
+    const firstMissing = !first;
+    const secondMissing = !second;
+    if (firstMissing || secondMissing) {
+      if (firstMissing && secondMissing) return 0;
+      return firstMissing ? 1 : -1;
+    }
+    return String(first).localeCompare(String(second));
+  };
+
+  return [...rows].sort((first, second) => {
+    let result;
+    if (sortState.key === 'lead_time') {
+      result = Number(first.lead_time || 0) - Number(second.lead_time || 0);
+    } else if (sortState.key === 'latest' || sortState.key === 'actual') {
+      result = compareDate(first[sortState.key], second[sortState.key]);
+    } else if (sortState.key === 'status' || sortState.key === 'urgency') {
+      result = (statusOrder[String(first.status).toLowerCase()] ?? 99) - (statusOrder[String(second.status).toLowerCase()] ?? 99);
+    } else {
+      result = compareText(first[sortState.key], second[sortState.key]);
+    }
+
+    if (result === 0 && sortState.key !== 'latest') {
+      result = compareDate(first.latest, second.latest);
+    }
+    return result * direction;
+  });
+}
+
 function DateInputCell({ initialValue, onSave, dateFormat }) {
   const [value, setValue] = useState(initialValue || '');
   const [isEditing, setIsEditing] = useState(false);
@@ -167,7 +236,7 @@ function DateInputCell({ initialValue, onSave, dateFormat }) {
       onFocus={() => setIsEditing(true)}
       className={`px-2 py-1 border rounded text-xs cursor-text transition-colors flex items-center min-w-[100px] h-[26px] ${
         value 
-          ? 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100' 
+          ? 'border-gray-300 text-gray-700 font-semibold bg-white hover:bg-gray-50' 
           : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
       }`}
     >
