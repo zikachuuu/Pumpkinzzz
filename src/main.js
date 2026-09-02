@@ -133,6 +133,20 @@ function initDb() {
           }
         });
 
+        // 8. saved_gantt_chart table
+        db.run(`CREATE TABLE IF NOT EXISTS saved_gantt_chart (
+          row_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          slot_id INTEGER NOT NULL CHECK(slot_id >= 1 AND slot_id <= 5),
+          project_tag_no TEXT NOT NULL,
+          custom_name TEXT,
+          start_milestone_id INTEGER,
+          end_milestone_id INTEGER,
+          display_order INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY(project_tag_no) REFERENCES projects(tag_no) ON DELETE CASCADE,
+          FOREIGN KEY(start_milestone_id) REFERENCES milestones(id) ON DELETE SET NULL,
+          FOREIGN KEY(end_milestone_id) REFERENCES milestones(id) ON DELETE SET NULL
+        );`);
+
         console.log('Database tables initialized successfully.');
       });
     }
