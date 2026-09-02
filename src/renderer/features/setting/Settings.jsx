@@ -18,6 +18,9 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
   };
 
   const handleResetSettings = () => {
+    const shouldReset = window.confirm('Reset all saved settings to the default values?');
+    if (!shouldReset) return;
+
     const defaultSettings = resetPersistedSettings();
     setUrgencySettingsState(defaultSettings.urgencySettings);
     setStartOfWeekState(defaultSettings.startOfWeek);
