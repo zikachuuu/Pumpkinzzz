@@ -293,3 +293,51 @@ export async function updateProjectActualReceivedDates(tagNo, receivedDatesJSON)
   return api.dbRun(`UPDATE projects SET actual_received_dates = ? WHERE tag_no = ?`, [receivedDatesJSON, tagNo]);
 }
 
+
+// ==========================================
+// 6. GANTT CHARTS
+// ==========================================
+
+// 1. Get a summary of what project is in which slot (Returns { 1: "AIR1", 2: null, ... })
+export const getSavedGanttChartsSummary = async () => {
+  const sql = `SELECT slot_id, project_tag_no FROM saved_gantt_chart GROUP BY slot_id`;
+  const rows = await api.dbQuery(sql); 
+  const summary = { 1: null, 2: null, 3: null, 4: null, 5: null };
+  rows.forEach(r => { summary[r.slot_id] = r.project_tag_no; });
+  return summary;
+};
+
+// 2. Get the specific rows for a slot
+export const getGanttChart = async (slotId) => {
+  const sql = `SELECT * FROM saved_gantt_chart WHERE slot_id = ? ORDER BY display_order ASC`;
+  return await api.dbQuery(sql, [slotId]);
+};
+
+// 3. Save a chart (Deletes old rows for the slot, then inserts new ones)
+export const saveGanttChart = async (slotId, projectTagNo, rows) => {
+  const statements = [];
+  
+  // Step 1: Clear the existing chart for this slot
+  statements.push({
+    sql: `DELETE FROM saved_gantt_chart WHERE slot_id = ?`,
+    params: [slotId]
+  });
+
+  // Step 2: Insert the new rows with their exact display order
+  rows.forEach((row, index) => {
+    statements.push({
+      sql: `INSERT INTO saved_gantt_chart (slot_id, project_tag_no, custom_name, start_milestone_id, end_milestone_id, display_order) VALUES (?, ?, ?, ?, ?, ?)`,
+      params: [
+        slotId, 
+        projectTagNo, 
+        row.name || '', 
+        row.start ? parseInt(row.start) : null, 
+        row.end ? parseInt(row.end) : null, 
+        index
+      ]
+    });
+  });
+
+  // Execute as a single transaction using your existing helper
+  return await dbTransaction(statements);
+};

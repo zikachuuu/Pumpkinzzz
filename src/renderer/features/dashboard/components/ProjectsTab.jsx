@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart3, ChevronDown, ChevronUp, Edit2, Plus, Trash2, Save, Eye, EyeOff } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Edit2, Plus, Trash2, Save, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { formatDate, getStartOfWeek } from '../../../utils/date';
 import StatusBadge from '../../../components/ui/StatusBadge';
+import Modal from '../../../components/ui/Modal'; 
 
+// Cross-Feature Imports
 import MilestoneTable from '../../project-tracker/components/MilestoneTable';
 import ComponentTable from '../../project-tracker/components/ComponentTable';
 
@@ -13,36 +15,42 @@ const GANTT_COLORS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-ros
 export default function ProjectsTab({
   projects, selectedTag, setSelectedTag, selectedProject, detailedSummary, datedMilestones, dateFormat, handleOpenEditModal,
   allComponents, allMilestones, allComponentSchedules, milestoneSort, setMilestoneSort, componentSort, setComponentSort,
-  urgencySettings, sortRows, toggleTableSort, handleActualDateUpdate, handleActualReceivedUpdate, getMilestoneStatus
+  urgencySettings, sortRows, toggleTableSort, handleActualDateUpdate, handleActualReceivedUpdate, getMilestoneStatus,
+  // Props from Hook
+  savedChartsSummary = {}, handleSaveGantt, handleLoadGantt 
 }) {
   const [showDetails, setShowDetails] = useState(true);
   
-  // Upgraded Gantt State
+  // Gantt State
   const [ganttRows, setGanttRows] = useState([]);
   const [ganttScale, setGanttScale] = useState('days'); // days, weeks, months, years
   const [showActuals, setShowActuals] = useState(false);
   const startOfWeek = getStartOfWeek(); 
   
-  const [savedCharts, setSavedCharts] = useState({ 1: null, 2: null, 3: null, 4: null, 5: null });
-  const [activeSlot, setActiveSlot] = useState(null);
+  // Modal States
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [selectedSlotForSave, setSelectedSlotForSave] = useState(1);
+  const [pendingLoadSlot, setPendingLoadSlot] = useState(null);
 
   const addGanttRow = () => setGanttRows(rows => [...rows, { name: 'New Phase', start: '', end: '' }]);
   const updateGanttRow = (index, field, value) => setGanttRows(rows => rows.map((row, i) => i === index ? { ...row, [field]: value } : row));
   const removeGanttRow = index => setGanttRows(rows => rows.filter((_, i) => i !== index));
 
-  const handleSaveChart = (slotIndex) => {
-    const payload = { projectTag: selectedTag, rows: ganttRows };
-    setSavedCharts(prev => ({ ...prev, [slotIndex]: payload }));
-    setActiveSlot(slotIndex);
+  const confirmLoad = async () => {
+    const loadedRows = await handleLoadGantt(pendingLoadSlot, setSelectedTag, setGanttRows);
+    setLoadModalOpen(false);
+
+    if (loadedRows && loadedRows.length > 0) {
+      setGanttRows(loadedRows);
+    } else {
+      setGanttRows([]);
+    }
   };
 
-  const handleLoadChart = (slotIndex) => {
-    const chartData = savedCharts[slotIndex];
-    if (chartData) {
-      setSelectedTag(chartData.projectTag);
-      setGanttRows(chartData.rows);
-      setActiveSlot(slotIndex);
-    }
+  const confirmSave = async () => {
+    await handleSaveGantt(selectedSlotForSave, selectedTag, ganttRows);
+    setSaveModalOpen(false);
   };
 
   const projectActuals = useMemo(() => {
@@ -52,6 +60,8 @@ export default function ProjectsTab({
 
   return (
     <div className="space-y-6">
+      
+      {/* --- TOP NAV: Load Only --- */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="flex-1">
           <label className="block text-xs font-bold text-gray-500 uppercase">Select project</label>
@@ -60,7 +70,6 @@ export default function ProjectsTab({
             onChange={event => { 
               setSelectedTag(event.target.value); 
               setGanttRows([]); 
-              setActiveSlot(null);
             }} 
             className="mt-2 w-full max-w-xl rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none"
           >
@@ -72,29 +81,25 @@ export default function ProjectsTab({
         </div>
         
         <div className="flex flex-col gap-2">
-          <label className="block text-[10px] font-bold text-gray-400 uppercase text-right">Saved Gantt Charts</label>
+          <label className="block text-[10px] font-bold text-gray-400 uppercase text-right">Load Saved Gantt Charts</label>
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5].map(slot => {
-              const isFilled = !!savedCharts[slot];
-              const isActive = activeSlot === slot;
+              const filledTag = savedChartsSummary[slot];
               return (
-                <div key={slot} className="flex flex-col gap-1 items-center">
-                  <button
-                    onClick={() => isFilled ? handleLoadChart(slot) : handleSaveChart(slot)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all border ${
-                      isActive ? 'bg-indigo-600 text-white border-indigo-700 shadow-inner' :
-                      isFilled ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' :
-                      'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100 border-dashed'
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                  {isFilled && isActive && (
-                    <button onClick={() => handleSaveChart(slot)} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-900 flex items-center gap-0.5">
-                      <Save className="w-3 h-3"/> Save
-                    </button>
-                  )}
-                </div>
+                <button
+                  key={slot}
+                  disabled={!filledTag}
+                  onClick={() => {
+                    setPendingLoadSlot(slot);
+                    setLoadModalOpen(true);
+                  }}
+                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all border ${
+                    filledTag ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' : 'bg-gray-50 text-gray-300 border-gray-200 border-dashed cursor-not-allowed'
+                  }`}
+                  title={filledTag ? `Load Slot ${slot} (${filledTag})` : `Slot ${slot} is empty`}
+                >
+                  {slot}
+                </button>
               );
             })}
           </div>
@@ -103,7 +108,7 @@ export default function ProjectsTab({
 
       {selectedProject ? (
         <>
-          {/* THE EXACT PROJECT CARD FROM THE TRACKER */}
+          {/* --- THE PROJECT CARD --- */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all hover:border-gray-300">
             <div 
               onClick={() => setShowDetails(!showDetails)}
@@ -167,7 +172,7 @@ export default function ProjectsTab({
             )}
           </div>
 
-          {/* THE NEW ADVANCED DUAL-PANE GANTT CHART */}
+          {/* --- THE GANTT CHART CONTROLS --- */}
           <section className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div className="flex items-center justify-between gap-3 p-4 border-b border-gray-200 bg-gray-50/50">
               <div className="flex items-center gap-2">
@@ -179,29 +184,31 @@ export default function ProjectsTab({
                 {/* Scale Selector */}
                 <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-300 p-1">
                   {['days', 'weeks', 'months', 'years'].map(scale => (
-                    <button
-                      key={scale}
-                      onClick={() => setGanttScale(scale)}
-                      className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${ganttScale === scale ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
+                    <button key={scale} onClick={() => setGanttScale(scale)} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${ganttScale === scale ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}>
                       {scale}
                     </button>
                   ))}
                 </div>
                 
                 {/* Actuals Toggle */}
-                <button 
-                  onClick={() => setShowActuals(!showActuals)} 
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border ${showActuals ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-                >
+                <button onClick={() => setShowActuals(!showActuals)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border ${showActuals ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
                   {showActuals ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   {showActuals ? 'Hide Actuals' : 'Compare Actuals'}
                 </button>
 
                 <div className="w-px h-6 bg-gray-300 mx-1"></div>
 
-                <button onClick={addGanttRow} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition text-white text-xs font-bold shadow-sm">
+                {/* Actions */}
+                <button onClick={addGanttRow} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-black transition text-white text-xs font-bold shadow-sm">
                   <Plus className="w-4 h-4" /> Add Row
+                </button>
+
+                <button 
+                  onClick={() => setSaveModalOpen(true)} 
+                  disabled={ganttRows.length === 0} 
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition text-white text-xs font-bold shadow-sm"
+                >
+                  <Save className="w-4 h-4" /> Save Gantt
                 </button>
               </div>
             </div>
@@ -231,6 +238,54 @@ export default function ProjectsTab({
           No registered projects are available.
         </div>
       )}
+
+      {/* --- MODALS --- */}
+      {/* Load Confirm Modal */}
+      <Modal isOpen={loadModalOpen} onClose={() => setLoadModalOpen(false)} title="Confirm Load" maxWidth="max-w-md">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200 text-amber-800">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-sm">Overwrite current chart?</p>
+              <p className="text-xs mt-1">Loading Slot {pendingLoadSlot} ({savedChartsSummary[pendingLoadSlot]}) will replace your current unsaved Gantt configuration. This cannot be undone.</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setLoadModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+            <button onClick={confirmLoad} className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">Confirm Load</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Save Chart Modal */}
+      <Modal isOpen={saveModalOpen} onClose={() => setSaveModalOpen(false)} title="Save Gantt Chart" maxWidth="max-w-md">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Select a slot to save the current Gantt chart configuration for <span className="font-bold">{selectedTag}</span>.</p>
+          
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map(slot => {
+              const currentProjectInSlot = savedChartsSummary[slot];
+              return (
+                <label key={slot} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedSlotForSave === slot ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                  <div className="flex items-center gap-3">
+                    <input type="radio" name="saveSlot" checked={selectedSlotForSave === slot} onChange={() => setSelectedSlotForSave(slot)} className="text-indigo-600 focus:ring-indigo-500" />
+                    <span className="font-bold text-sm text-gray-800">Slot {slot}</span>
+                  </div>
+                  <span className={`text-xs font-semibold ${currentProjectInSlot ? 'text-indigo-600' : 'text-gray-400'}`}>
+                    {currentProjectInSlot ? `Currently: ${currentProjectInSlot}` : 'Empty'}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+            <button onClick={() => setSaveModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg">Cancel</button>
+            <button onClick={confirmSave} className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">Save to Slot {selectedSlotForSave}</button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }
@@ -242,8 +297,9 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
 
   const processedRows = useMemo(() => {
     return ganttRows.map((row) => {
-      const startNode = datedMilestones.find(m => m.id === parseInt(row.start));
-      const endNode = datedMilestones.find(m => m.id === parseInt(row.end));
+      // Use String() comparison to prevent number vs string type mismatch bugs
+      const startNode = datedMilestones.find(m => String(m.id) === String(row.start));
+      const endNode = datedMilestones.find(m => String(m.id) === String(row.end));
       
       const startStr = startNode?.target;
       const endStr = endNode?.target;
@@ -319,7 +375,7 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
       const year = startOfInt.getFullYear();
       const month = startOfInt.toLocaleString('default', { month: 'short' }).toUpperCase();
       const showYear = year !== prevYear;
-      const showMonth = showYear || month !== prevMonth;
+      const showMonth = showYear || month !== prevMonth; // Show month if year changed or month changed
 
       prevYear = year;
       prevMonth = month;
@@ -355,7 +411,9 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
         </div>
         
         {processedRows.map((row, idx) => {
+          // 🚨 Error Validation: Highlights row if end is before start
           const isError = row.start && row.end && row.duration !== null && !row.isValid;
+          
           return (
             <div key={idx} className="min-h-[56px] border-b border-gray-100 flex items-center px-4 py-2 gap-2 text-xs group hover:bg-gray-50 transition-colors">
               <input 
@@ -378,6 +436,7 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
                   <option value="">End...</option>
                   {datedMilestones.map(m => <option key={`e-${m.id}`} value={m.id}>{m.name}</option>)}
                 </select>
+                {/* 🚨 Error Message */}
                 {isError && <span className="text-[9px] font-bold text-red-600 mt-1 leading-tight">End must be after start</span>}
               </div>
 
@@ -421,7 +480,7 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
               ))}
             </div>
 
-            {/* Alternating Background Grid Colors */}
+            {/* Alternating Background Grid Colors based on Start of Week */}
             <div className="absolute inset-0 top-16 bottom-0 flex pointer-events-none z-0">
               {timelineData.intervals.map((int, i) => (
                 <div key={`grid-${i}`} className={`border-r border-gray-100 h-full ${int.isAlt ? 'bg-indigo-50/20' : 'bg-transparent'}`} style={{ width: int.width, minWidth: int.width }} />

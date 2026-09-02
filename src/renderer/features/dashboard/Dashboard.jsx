@@ -26,7 +26,8 @@ export default function Dashboard({ dateFormat }) {
     editingProject, setEditingProject, editForm, setEditForm,
     milestoneSort, setMilestoneSort, componentSort, setComponentSort, urgencySettings,
     sortRows, toggleTableSort, handleActualDateUpdate, handleActualReceivedUpdate, getMilestoneStatus,
-    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary
+    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary,
+    savedChartsSummary, handleSaveGantt, handleLoadGantt
   } = useDashboard(triggerAlert);
   
   const dashboardCopy = {
@@ -101,7 +102,10 @@ export default function Dashboard({ dateFormat }) {
           handleActualDateUpdate={handleActualDateUpdate}
           handleActualReceivedUpdate={handleActualReceivedUpdate}
           getMilestoneStatus={getMilestoneStatus}
-        />
+
+          savedChartsSummary={savedChartsSummary}
+          handleSaveGantt={handleSaveGantt}
+          handleLoadGantt={handleLoadGantt}        />
       )}
 
       {activeTab === 'productType' && (

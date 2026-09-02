@@ -22,6 +22,8 @@ export function useDashboard(triggerAlert) {
   const [editForm, setEditForm] = useState({});
   const urgencySettings = getUrgencySettings();
 
+  const [savedChartsSummary, setSavedChartsSummary] = useState({ 1: null, 2: null, 3: null, 4: null, 5: null });
+
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -29,8 +31,9 @@ export function useDashboard(triggerAlert) {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [projectData, typeData, componentData] = await Promise.all([
-        db.getProjects(), db.getProductTypes(), db.getComponents()
+      const [projectData, typeData, componentData, ganttSummary] = await Promise.all([
+        db.getProjects(), db.getProductTypes(), db.getComponents(),
+        db.getSavedGanttChartsSummary()
       ]);
 
       const milestoneMap = {};
@@ -56,6 +59,9 @@ export function useDashboard(triggerAlert) {
       setComponentUsage(usageMap);
       setMilestones(milestoneMap);
       setComponentSchedules(compSchedMap);
+      
+      // 👇 Ensure this is properly assigned here 👇
+      setSavedChartsSummary(ganttSummary);
 
       if (projectData.length > 0) setSelectedTag(projectData[0].tag_no);
     } catch (err) {
@@ -193,12 +199,50 @@ export function useDashboard(triggerAlert) {
     }
   };
 
+  const handleSaveGantt = async (slotId, projectTagNo, ganttRows) => {
+    try {
+      await db.saveGanttChart(slotId, projectTagNo, ganttRows);
+      setSavedChartsSummary(prev => ({ ...prev, [slotId]: projectTagNo }));
+      if (triggerAlert) triggerAlert('success', `Gantt chart saved to Slot ${slotId}`);
+      return true;
+    } catch (err) {
+      if (triggerAlert) triggerAlert('error', `Failed to save chart: ${err.message}`);
+      return false;
+    }
+  };
+
+  const handleLoadGantt = async (slotId, setSelectedTag, setGanttRows) => {
+    try {
+      const rows = await db.getGanttChart(slotId);
+      if (rows.length > 0) {
+        const formattedRows = rows.map(r => ({
+          name: r.custom_name || '',
+          start: r.start_milestone_id != null ? String(r.start_milestone_id) : '',
+          end: r.end_milestone_id != null ? String(r.end_milestone_id) : ''
+        }));
+
+        if (setSelectedTag) setSelectedTag(rows[0].project_tag_no);
+        if (setGanttRows) setGanttRows(formattedRows);
+
+        if (triggerAlert) triggerAlert('success', `Loaded chart from Slot ${slotId}`);
+        return formattedRows;
+      }
+
+      if (triggerAlert) triggerAlert('warning', `Slot ${slotId} is empty.`);
+      return [];
+    } catch (err) {
+      if (triggerAlert) triggerAlert('error', `Failed to load chart: ${err.message}`);
+      return [];
+    }
+  };
+
   return {
     projects, productTypes, components, componentUsage, allMilestones, allComponentSchedules,
     loading, selectedTag, setSelectedTag,
     editingProject, setEditingProject, editForm, setEditForm,
     milestoneSort, setMilestoneSort, componentSort, setComponentSort, urgencySettings,
     sortRows, toggleTableSort, handleActualDateUpdate, handleActualReceivedUpdate, getMilestoneStatus,
-    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary
+    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary,
+    savedChartsSummary, handleSaveGantt, handleLoadGantt
   };
 }
