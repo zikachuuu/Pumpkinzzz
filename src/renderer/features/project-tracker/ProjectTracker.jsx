@@ -288,6 +288,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
         editForm={editForm}
         setEditForm={setEditForm}
         handleSaveEdit={handleSaveEdit}
+        dateFormat={dateFormat}
       />
 
     </div>

@@ -1,6 +1,6 @@
 export const DATE_FORMATS = {
-  iso: 'yyyy-mm-dd',
-  dmy: 'dd-mm-yyyy'
+  iso: 'yyyy/mm/dd',
+  dmy: 'dd/mm/yyyy'
 };
 
 export const DEFAULT_URGENCY_SETTINGS = {
@@ -29,6 +29,12 @@ function getStorage() {
 }
 
 export function normalizeSettings(settings = {}) {
+  const storedDateFormat = settings.dateFormat;
+  const dateFormat = storedDateFormat === 'yyyy-mm-dd'
+    ? DATE_FORMATS.iso
+    : storedDateFormat === 'dd-mm-yyyy'
+      ? DATE_FORMATS.dmy
+      : storedDateFormat || DEFAULT_SETTINGS.dateFormat;
   const urgencySettings = {
     ...DEFAULT_URGENCY_SETTINGS,
     ...(settings.urgencySettings || {})
@@ -38,7 +44,7 @@ export function normalizeSettings(settings = {}) {
     ...DEFAULT_SETTINGS,
     ...settings,
     startOfWeek: Number(settings.startOfWeek ?? DEFAULT_SETTINGS.startOfWeek),
-    dateFormat: settings.dateFormat || DEFAULT_SETTINGS.dateFormat,
+    dateFormat,
     urgencySettings,
   };
 }
@@ -103,7 +109,9 @@ export function formatDate(dateValue, format = DATE_FORMATS.iso) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return value;
   const [, year, month, day] = match;
-  return format === DATE_FORMATS.dmy ? `${day}-${month}-${year}` : `${year}-${month}-${day}`;
+  return format === DATE_FORMATS.dmy || format === 'dd-mm-yyyy'
+    ? `${day}/${month}/${year}`
+    : `${year}/${month}/${day}`;
 }
 
 export function getStoredDateFormat() {

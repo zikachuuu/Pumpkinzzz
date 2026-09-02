@@ -297,7 +297,6 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
 
   const processedRows = useMemo(() => {
     return ganttRows.map((row) => {
-      // Use String() comparison to prevent number vs string type mismatch bugs
       const startNode = datedMilestones.find(m => String(m.id) === String(row.start));
       const endNode = datedMilestones.find(m => String(m.id) === String(row.end));
       
@@ -315,9 +314,13 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
       const actEnd = isEndContract ? contractSignedDate : (endNode ? projectActuals[endNode.id] : null);
       const actDuration = (actStart && actEnd) ? daysBetween(actStart, actEnd) : null;
       
-      return { ...row, startStr, endStr, duration, isValid, actStart, actEnd, actDuration };
+      // Calculate dynamic synchronized heights for both panes
+      const hasValidActual = showActuals && actDuration !== null && actDuration >= 0;
+      const rowHeightClass = !isValid ? 'h-14' : (hasValidActual ? 'h-[108px]' : 'h-[64px]');
+      
+      return { ...row, startStr, endStr, duration, isValid, actStart, actEnd, actDuration, hasValidActual, rowHeightClass };
     });
-  }, [ganttRows, datedMilestones, projectActuals, contractSignedDate]);
+  }, [ganttRows, datedMilestones, projectActuals, contractSignedDate, showActuals]);
 
   const timelineData = useMemo(() => {
     const allStarts = [];
@@ -328,7 +331,7 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
         allStarts.push(new Date(r.startStr));
         allEnds.push(new Date(r.endStr));
       }
-      if (showActuals && r.actStart && r.actEnd && r.actDuration >= 0) {
+      if (r.hasValidActual) {
         allStarts.push(new Date(r.actStart));
         allEnds.push(new Date(r.actEnd));
       }
@@ -339,11 +342,9 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
     let minDate = new Date(Math.min(...allStarts));
     let maxDate = new Date(Math.max(...allEnds));
     
-    // Add visual padding
     minDate.setDate(minDate.getDate() - 3);
     maxDate.setDate(maxDate.getDate() + 3);
 
-    // SNAP the minDate to perfectly align with the chosen interval grid
     if (ganttScale === 'weeks') {
       const dayOffset = (minDate.getDay() - startOfWeek + 7) % 7;
       minDate.setDate(minDate.getDate() - dayOffset);
@@ -353,7 +354,6 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
       minDate.setMonth(0, 1);
     }
 
-    // Generate dynamic intervals (Cells) for the axis
     const intervals = [];
     let current = new Date(minDate);
     let prevYear = null;
@@ -375,14 +375,13 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
       const year = startOfInt.getFullYear();
       const month = startOfInt.toLocaleString('default', { month: 'short' }).toUpperCase();
       const showYear = year !== prevYear;
-      const showMonth = showYear || month !== prevMonth; // Show month if year changed or month changed
+      const showMonth = showYear || month !== prevMonth; 
 
       prevYear = year;
       prevMonth = month;
 
       intervals.push({
-        width,
-        showYear, showMonth, year, month,
+        width, showYear, showMonth, year, month,
         day: startOfInt.getDate(),
         dow: startOfInt.toLocaleString('default', { weekday: 'narrow' }),
         isAlt: idx % 2 === 0
@@ -394,28 +393,26 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
     }
 
     return { minDate, intervals };
-  }, [processedRows, ganttScale, startOfWeek, showActuals]);
+  }, [processedRows, ganttScale, startOfWeek]);
 
   return (
     <div className="flex border-t border-gray-200">
       
       {/* LEFT PANE: Fixed Controls Table */}
       <div className="w-[620px] shrink-0 border-r border-gray-200 bg-white z-20 flex flex-col shadow-[4px_0_12px_rgba(0,0,0,0.03)]">
-        {/* Adjusted header height to match the new 4-tier axis on the right */}
         <div className="h-16 border-b border-gray-200 bg-gray-50 flex items-center px-4 gap-2 text-[10px] font-bold text-gray-500 uppercase">
           <div className="w-1/4">Custom Name</div>
           <div className="w-1/4">Start Milestone</div>
           <div className="w-1/4">End Milestone</div>
-          <div className="w-1/4">Ref. Dates</div>
+          <div className="w-1/4">Reference Dates</div>
           <div className="w-6 shrink-0"></div>
         </div>
         
         {processedRows.map((row, idx) => {
-          // 🚨 Error Validation: Highlights row if end is before start
           const isError = row.start && row.end && row.duration !== null && !row.isValid;
           
           return (
-            <div key={idx} className="min-h-[56px] border-b border-gray-100 flex items-center px-4 py-2 gap-2 text-xs group hover:bg-gray-50 transition-colors">
+            <div key={idx} className={`${row.rowHeightClass} border-b border-gray-100 flex items-center px-4 gap-2 text-xs group hover:bg-gray-50 transition-colors`}>
               <input 
                 type="text" value={row.name} onChange={e => updateGanttRow(idx, 'name', e.target.value)} 
                 placeholder="Row Name" className="w-1/4 border border-gray-300 rounded px-2 py-1.5 focus:border-indigo-500 focus:outline-none" 
@@ -436,19 +433,33 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
                   <option value="">End...</option>
                   {datedMilestones.map(m => <option key={`e-${m.id}`} value={m.id}>{m.name}</option>)}
                 </select>
-                {/* 🚨 Error Message */}
                 {isError && <span className="text-[9px] font-bold text-red-600 mt-1 leading-tight">End must be after start</span>}
               </div>
 
-              <div className="w-1/4 text-gray-500 truncate text-[10px] leading-tight">
+              {/* 👇 NEW: Vertically Stacked Ref Dates 👇 */}
+              <div className="w-1/4 text-gray-500 text-[10px] leading-tight flex flex-col justify-center gap-2">
                 {row.isValid ? (
                   <>
-                    <span className="block font-semibold text-gray-700">Target: {formatDate(row.startStr, dateFormat).slice(0, 5)} → {formatDate(row.endStr, dateFormat).slice(0, 5)}</span>
-                    {showActuals && row.actDuration !== null && row.actDuration >= 0 && (
-                      <span className="block text-emerald-600 mt-0.5">Actual: {formatDate(row.actStart, dateFormat).slice(0, 5)} → {formatDate(row.actEnd, dateFormat).slice(0, 5)}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-gray-700 w-10 shrink-0">Target</span>
+                      <div className="flex flex-col items-center flex-1">
+                        <span>{formatDate(row.startStr, dateFormat)}</span>
+                        <span className="text-[8px] text-gray-400 my-[1px]">↓</span>
+                        <span>{formatDate(row.endStr, dateFormat)}</span>
+                      </div>
+                    </div>
+                    {row.hasValidActual && (
+                      <div className="flex items-center gap-1 text-emerald-600">
+                        <span className="font-semibold w-10 shrink-0">Actual</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span>{formatDate(row.actStart, dateFormat)}</span>
+                          <span className="text-[8px] text-emerald-400 my-[1px]">↓</span>
+                          <span>{formatDate(row.actEnd, dateFormat)}</span>
+                        </div>
+                      </div>
                     )}
                   </>
-                ) : '-'}
+                ) : <span>-</span>}
               </div>
               
               <button onClick={() => removeGanttRow(idx)} className="w-6 shrink-0 p-1 text-gray-400 hover:text-red-600 rounded flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -467,8 +478,6 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
           </div>
         ) : (
           <div className="relative">
-            
-            {/* Timeline Header Axis (4-Row De-duplicated Logic) */}
             <div className="h-16 border-b border-gray-300 bg-gray-50 flex text-[9px] font-bold text-gray-500 select-none">
               {timelineData.intervals.map((interval, i) => (
                 <div key={i} className="flex flex-col text-center border-r border-gray-200 h-full justify-between pb-0.5" style={{ width: interval.width, minWidth: interval.width }}>
@@ -480,62 +489,58 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
               ))}
             </div>
 
-            {/* Alternating Background Grid Colors based on Start of Week */}
             <div className="absolute inset-0 top-16 bottom-0 flex pointer-events-none z-0">
               {timelineData.intervals.map((int, i) => (
                 <div key={`grid-${i}`} className={`border-r border-gray-100 h-full ${int.isAlt ? 'bg-indigo-50/20' : 'bg-transparent'}`} style={{ width: int.width, minWidth: int.width }} />
               ))}
             </div>
 
-            {/* Timeline Bars */}
             <div className="relative z-10">
               {processedRows.map((row, idx) => {
-                if (!row.isValid) return <div key={`bg-${idx}`} className="min-h-[56px] border-b border-gray-200/50"></div>;
+                if (!row.isValid) return <div key={`bg-${idx}`} className={`${row.rowHeightClass} border-b border-gray-200/50`}></div>;
 
                 const leftPos = daysBetween(timelineData.minDate, row.startStr) * PIXELS_PER_DAY;
                 const barWidth = row.duration * PIXELS_PER_DAY;
                 const colorClass = GANTT_COLORS[idx % GANTT_COLORS.length];
                 const isShort = row.duration * PIXELS_PER_DAY < 25;
 
-                // Actual Bar Math
-                const hasValidActual = showActuals && row.actDuration !== null && row.actDuration >= 0;
                 let actLeftPos, actBarWidth, isActShort;
-                if (hasValidActual) {
+                if (row.hasValidActual) {
                   actLeftPos = daysBetween(timelineData.minDate, row.actStart) * PIXELS_PER_DAY;
                   actBarWidth = row.actDuration * PIXELS_PER_DAY;
                   isActShort = row.actDuration * PIXELS_PER_DAY < 25;
                 }
 
                 return (
-                  <div key={`bar-${idx}`} className="min-h-[56px] border-b border-gray-200/50 relative group py-2">
+                  <div key={`bar-${idx}`} className={`${row.rowHeightClass} border-b border-gray-200/50 relative group`}>
                     
                     {/* Primary Target Bar */}
                     <div 
-                      className={`absolute rounded shadow-sm flex items-center justify-center transition-all ${colorClass} ${hasValidActual ? 'top-1 bottom-1/2 mt-1 mb-0.5' : 'top-2.5 bottom-2.5'}`}
+                      className={`absolute rounded shadow-sm flex items-center justify-center transition-all ${colorClass} ${row.hasValidActual ? 'top-2 bottom-1/2 mb-1' : 'top-3 bottom-3'}`}
                       style={{ left: `${leftPos}px`, width: `${barWidth}px` }}
                       title={`Target Duration: ${row.duration} Days`}
                     >
-                      {!isShort && <span className="text-[9px] font-extrabold text-white drop-shadow-md px-1 truncate">{row.duration}D</span>}
+                      {!isShort && <span className="text-[9px] font-extrabold text-white drop-shadow-md px-1 truncate">{row.duration} days</span>}
                     </div>
                     {isShort && (
-                      <span className={`absolute flex items-center text-[9px] font-bold text-gray-500 ${hasValidActual ? 'top-1 bottom-1/2 mt-1 mb-0.5' : 'top-2.5 bottom-2.5'}`} style={{ left: `${leftPos + barWidth + 4}px` }}>
-                        {row.duration}D
+                      <span className={`absolute flex items-center text-[9px] font-bold text-gray-500 ${row.hasValidActual ? 'top-2 bottom-1/2 mb-1' : 'top-3 bottom-3'}`} style={{ left: `${leftPos + barWidth + 4}px` }}>
+                        {row.duration} days
                       </span>
                     )}
 
                     {/* Secondary Actuals Bar */}
-                    {hasValidActual && (
+                    {row.hasValidActual && (
                       <>
                         <div 
-                          className="absolute rounded shadow-sm flex items-center justify-center transition-all bg-emerald-400 top-1/2 bottom-1 mt-0.5 mb-1"
+                          className="absolute rounded shadow-sm flex items-center justify-center transition-all bg-emerald-400 top-1/2 bottom-2 mt-1"
                           style={{ left: `${actLeftPos}px`, width: `${actBarWidth}px` }}
                           title={`Actual Duration: ${row.actDuration} Days`}
                         >
-                          {!isActShort && <span className="text-[9px] font-extrabold text-white drop-shadow-md px-1 truncate">{row.actDuration}D</span>}
+                          {!isActShort && <span className="text-[9px] font-extrabold text-white drop-shadow-md px-1 truncate">{row.actDuration} days</span>}
                         </div>
                         {isActShort && (
-                          <span className="absolute flex items-center text-[9px] font-bold text-emerald-600 top-1/2 bottom-1 mt-0.5 mb-1" style={{ left: `${actLeftPos + actBarWidth + 4}px` }}>
-                            {row.actDuration}D
+                          <span className="absolute flex items-center text-[9px] font-bold text-emerald-600 top-1/2 bottom-2 mt-1" style={{ left: `${actLeftPos + actBarWidth + 4}px` }}>
+                            {row.actDuration} days
                           </span>
                         )}
                       </>

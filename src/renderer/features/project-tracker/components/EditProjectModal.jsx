@@ -1,7 +1,8 @@
 import React from 'react';
 import Modal from '../../../components/ui/Modal'; 
+import FormattedDateInput from '../../../components/ui/FormattedDateInput';
 
-export default function EditProjectModal({ editingProject, setEditingProject, editForm, setEditForm, handleSaveEdit }) {
+export default function EditProjectModal({ editingProject, setEditingProject, editForm, setEditForm, handleSaveEdit, dateFormat }) {
   if (!editingProject) return null;
 
   return (
@@ -23,8 +24,26 @@ export default function EditProjectModal({ editingProject, setEditingProject, ed
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-xs font-bold text-gray-700 uppercase">Contract Signed Date *</label><input type="date" required value={editForm.contract_signed_date || ''} onChange={(e) => setEditForm({ ...editForm, contract_signed_date: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none" /></div>
-          <div><label className="block text-xs font-bold text-gray-700 uppercase">ROS Date *</label><input type="date" required value={editForm.ros_date || ''} onChange={(e) => setEditForm({ ...editForm, ros_date: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none" /></div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase">Contract Signed Date *</label>
+            <FormattedDateInput 
+              required 
+              value={editForm.contract_signed_date || ''} 
+              onChange={(e) => setEditForm({ ...editForm, contract_signed_date: e.target.value })} 
+              dateFormat={dateFormat}
+              className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none" 
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase">ROS Date *</label>
+            <FormattedDateInput 
+              required 
+              value={editForm.ros_date || ''} 
+              onChange={(e) => setEditForm({ ...editForm, ros_date: e.target.value })} 
+              dateFormat={dateFormat}
+              className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none" 
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

@@ -102,7 +102,8 @@ export default function MilestoneTable({
                         <DateInputCell 
                           initialValue={actual} 
                           onSave={(val) => handleActualDateUpdate(project.tag_no, m.id, val)} 
-                        />
+                          dateFormat={dateFormat} // 👈 ADD THIS PROP
+                        />                      
                       )}
                     </td>
                     
@@ -128,31 +129,46 @@ export default function MilestoneTable({
   );
 }
 
-// 👇 Tiny helper component that traps typing locally and only saves to DB on blur 👇
-function DateInputCell({ initialValue, onSave }) {
+function DateInputCell({ initialValue, onSave, dateFormat }) {
   const [value, setValue] = useState(initialValue || '');
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Keep local state synced if the database updates externally
-  useEffect(() => {
+  React.useEffect(() => {
     setValue(initialValue || '');
   }, [initialValue]);
 
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (value !== (initialValue || '')) {
+      onSave(value);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        type="date"
+        value={value}
+        autoFocus
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleBlur}
+        className="px-2 py-1 border border-indigo-500 rounded text-xs focus:outline-none bg-white w-full"
+      />
+    );
+  }
+
   return (
-    <input
-      type="date"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={() => {
-        // Only hit the database if the user actually changed the date and clicked away
-        if (value !== (initialValue || '')) {
-          onSave(value);
-        }
-      }}
-      className={`px-2 py-1 border rounded text-xs focus:outline-none transition-colors ${
+    <div
+      tabIndex={0}
+      onClick={() => setIsEditing(true)}
+      onFocus={() => setIsEditing(true)}
+      className={`px-2 py-1 border rounded text-xs cursor-text transition-colors flex items-center min-w-[100px] h-[26px] ${
         value 
-          ? 'border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500' 
-          : 'border-gray-300 text-gray-700 focus:border-indigo-500 bg-white'
+          ? 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100' 
+          : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
       }`}
-    />
+    >
+      <span>{value ? formatDate(value, dateFormat) : 'Select date...'}</span>
+    </div>
   );
 }

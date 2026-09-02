@@ -8,8 +8,9 @@ import { parseCSV, stringifyCSV } from '../../utils/csv';
 import Alert from '../../components/ui/Alert.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import ModalValidityStatusGuide from '../product-type-manager/components/ValidityStatusGuide.jsx';
+import FormattedDateInput from '../../components/ui/FormattedDateInput.jsx';
 
-export default function ProjectRegistry({ onRedirectToTracker }) {
+export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
   // Global reference states
   const [productTypes         , setProductTypes]          = useState([]);
   const [existingProjects     , setExistingProjects]      = useState([]);
@@ -839,22 +840,22 @@ export default function ProjectRegistry({ onRedirectToTracker }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase">Contract Signed Date *</label>
-                <input
-                  type="date"
+                <FormattedDateInput
                   required
                   value={formData.contract_signed_date}
                   onChange={(e) => setFormForm({ ...formData, contract_signed_date: e.target.value })}
+                  dateFormat={dateFormat}
                   className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase">ROS Date *</label>
-                <input
-                  type="date"
+                <FormattedDateInput
                   required
                   value={formData.ros_date}
                   onChange={(e) => setFormForm({ ...formData, ros_date: e.target.value })}
+                  dateFormat={dateFormat}
                   className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>

@@ -1,6 +1,6 @@
 {
-  "dateFormat": "dd-mm-yyyy",
-  "startOfWeek": 1,
+  "dateFormat": "yyyy/mm/dd",
+  "startOfWeek": 0,
   "urgencySettings": {
     "milestoneUrgentDays": 30,
     "milestoneVeryUrgentDays": 7,
