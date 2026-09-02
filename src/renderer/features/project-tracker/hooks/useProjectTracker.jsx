@@ -278,16 +278,18 @@ export function useProjectTracker() {
       const matchPt = ptFilter.includes(String(p.product_type_id));
       
       const detailedSummary = getProjectDetailedSummary(p);
+      const selectedMilestoneStatuses = milestoneStatusFilter.map(status => status.toLowerCase());
+      const selectedComponentStatuses = componentStatusFilter.map(status => status.toLowerCase());
       
       // If a project has 0 tracking items, it shouldn't fail the filter.
       // If it DOES have tracking items, at least one status must be selected in the dropdown.
       const milestoneItems = detailedSummary.filter(item => item.milestones > 0);
       const matchMilestoneStatus = milestoneItems.length === 0 || 
-        milestoneItems.some(item => milestoneStatusFilter.includes(item.status));
+        milestoneItems.some(item => selectedMilestoneStatuses.includes(item.status.toLowerCase()));
         
       const componentItems = detailedSummary.filter(item => item.components > 0);
       const matchComponentStatus = componentItems.length === 0 || 
-        componentItems.some(item => componentStatusFilter.includes(item.status));
+        componentItems.some(item => selectedComponentStatuses.includes(item.status.toLowerCase()));
 
       return matchSearch && matchPt && matchMilestoneStatus && matchComponentStatus;
     })
