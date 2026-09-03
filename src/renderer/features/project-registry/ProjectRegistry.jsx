@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Download, Upload, Save, ArrowLeft, AlertCircle, CheckCircle2, 
-  RefreshCw, Info 
+  RefreshCw, Info, Plus, Check, X
 } from 'lucide-react';
 import * as db from '../../utils/db';
 import { parseCSV, stringifyCSV } from '../../utils/csv';
@@ -11,6 +11,13 @@ import FormattedDateInput from '../../components/ui/FormattedDateInput.jsx';
 
 // 👇 Import the new standalone spreadsheet component 👇
 import BulkRegistrySpreadsheet from './components/BulkRegistrySpreadsheet.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+
+const REQUIRED_HEADERS = [
+  'Tag No', 'Description', 'Product Type', 'Schedule Name', 'Customer', 
+  'Contract No', 'Sales Ref', 'PM Owner', 'Engineer Owner', 'Procurement Owner', 
+  'Production Owner', 'FAT Owner', 'Contract Signed Date', 'ROS Date', 'Notes'
+];
 
 export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
   // Global reference states
@@ -33,6 +40,9 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
   // Bulk Upload States
   const [bulkMode, setBulkMode] = useState(false); 
   const [csvData, setCsvData] = useState([]); // Holds the raw parsed CSV text array
+
+  const [showFormatErrorModal, setShowFormatErrorModal] = useState(false);
+  const [uploadedHeaders, setUploadedHeaders] = useState([]);
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
@@ -126,11 +136,26 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
       const parsedCsv = parseCSV(text);
 
       if (parsedCsv.length < 2) {
-        triggerAlert('error', 'CSV file is empty or lacks headers.');
+        triggerAlert('error', 'Spreadsheet is empty or contains no data rows.');
         return;
       }
 
-      // Hand off the raw parsed array to the new Component
+      // 1. Extract and normalize headers
+      const uploadedH = parsedCsv[0].map(h => String(h).trim());
+      const normalizedUploaded = uploadedH.map(h => h.toLowerCase());
+      const normalizedRequired = REQUIRED_HEADERS.map(h => h.toLowerCase());
+
+      // 2. Check if any required headers are missing
+      const isMissingRequired = normalizedRequired.some(h => !normalizedUploaded.includes(h));
+
+      if (isMissingRequired) {
+        // Block upload, save headers to state, and trigger the modal
+        setUploadedHeaders(uploadedH);
+        setShowFormatErrorModal(true);
+        return; 
+      }
+
+      // If validation passes, hand off to the Bulk component
       setCsvData(parsedCsv);
       setBulkMode(true);
     } catch (err) {
@@ -421,7 +446,7 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Plus className="w-4 h-4" />
                     <span>Register New Project</span>
                   </>
                 )}
@@ -431,7 +456,60 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
         </form>
       </div>
 
-      <ModalValidityStatusGuide isOpen={showValidityModal} onClose={() => setShowValidityModal(false)} />    
+      <ModalValidityStatusGuide isOpen={showValidityModal} onClose={() => setShowValidityModal(false)} /> 
+
+      {/* 👇 ADD THIS NEW FORMAT ERROR MODAL 👇 */}
+      <Modal isOpen={showFormatErrorModal} onClose={() => setShowFormatErrorModal(false)} title="Wrong spreadsheet format uploaded" maxWidth="max-w-3xl">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">The spreadsheet you uploaded is missing required columns or contains unrecognized headers. Please ensure your file matches the exact template format.</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-5 rounded-lg border border-gray-200 shadow-inner">
+            {/* Uploaded List */}
+            <div>
+              <h4 className="font-bold text-xs text-gray-500 uppercase mb-3">Columns You Uploaded:</h4>
+              <ul className="text-xs space-y-2 font-medium">
+                {uploadedHeaders.length === 0 ? <li className="text-gray-400 italic">No headers found</li> : uploadedHeaders.map((h, i) => {
+                  const isRecognized = REQUIRED_HEADERS.map(req => req.toLowerCase()).includes(h.toLowerCase());
+                  return (
+                    <li key={i} className={`flex items-start space-x-2 ${isRecognized ? "text-gray-600" : "text-red-600"}`}>
+                      {!isRecognized && <X className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+                      {isRecognized && <Check className="w-3.5 h-3.5 mt-0.5 text-emerald-500 shrink-0" />}
+                      <span className="leading-tight">{h || '[Empty Column]'} {!isRecognized && '(Unrecognized)'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            
+            {/* Required List */}
+            <div>
+              <h4 className="font-bold text-xs text-gray-500 uppercase mb-3">Required Format:</h4>
+              <ul className="text-xs space-y-2 font-medium">
+                {REQUIRED_HEADERS.map((h, i) => {
+                  const isPresent = uploadedHeaders.map(up => up.toLowerCase()).includes(h.toLowerCase());
+                  return (
+                    <li key={i} className={`flex items-start space-x-2 ${isPresent ? "text-gray-600" : "text-red-600"}`}>
+                      {!isPresent && <X className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+                      {isPresent && <Check className="w-3.5 h-3.5 mt-0.5 text-emerald-500 shrink-0" />}
+                      <span className="leading-tight">{h} {!isPresent && '(Missing)'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 mt-2">
+            <button 
+              onClick={() => setShowFormatErrorModal(false)} 
+              className="px-8 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
-}
+}   

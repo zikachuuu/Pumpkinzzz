@@ -204,7 +204,7 @@ export default function BulkRegistrySpreadsheet({
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Bulk Product Registry Spreadsheet</h2>
+            <h2 className="text-xl font-bold text-gray-900">Batch Project Registration with Spreadsheet (.csv file)</h2>
             <p className="text-sm text-gray-800 mt-2">
                 Review your uploaded spreadsheet and make the neccessary corrections before confirming the upload.
             </p>
