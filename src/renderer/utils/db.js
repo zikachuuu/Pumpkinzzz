@@ -300,11 +300,21 @@ export async function updateProjectActualReceivedDates(tagNo, receivedDatesJSON)
 
 // 1. Get a summary of what project is in which slot (Returns { 1: "AIR1", 2: null, ... })
 export const getSavedGanttChartsSummary = async () => {
-  const sql = `SELECT slot_id, project_tag_no FROM saved_gantt_chart GROUP BY slot_id`;
+  const sql = `SELECT slot_id, project_tag_no, COUNT(row_id) as row_count FROM saved_gantt_chart GROUP BY slot_id, project_tag_no`;
   const rows = await api.dbQuery(sql); 
   const summary = { 1: null, 2: null, 3: null, 4: null, 5: null };
-  rows.forEach(r => { summary[r.slot_id] = r.project_tag_no; });
+  rows.forEach(r => { 
+    summary[r.slot_id] = {
+      tag_no: r.project_tag_no,
+      row_count: r.row_count
+    }; 
+  });
   return summary;
+};
+
+// 4. Delete a saved chart
+export const deleteGanttChart = async (slotId) => {
+  return await api.dbRun(`DELETE FROM saved_gantt_chart WHERE slot_id = ?`, [slotId]);
 };
 
 // 2. Get the specific rows for a slot

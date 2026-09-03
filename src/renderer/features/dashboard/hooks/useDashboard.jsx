@@ -3,6 +3,12 @@ import * as db from '../../../utils/db';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../../utils/scheduler';
 import { getUrgencySettings } from '../../../utils/date';
 
+// 1. Standard statuses for the strict dropdown filters
+const ALL_STATUSES = [
+  'Overdue', 'Very Urgent', 'Urgent', 'On Track', 
+  'Completed before deadline', 'Completed after deadline'
+];
+
 export function useDashboard(triggerAlert) {
   const [projects, setProjects] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
@@ -12,6 +18,15 @@ export function useDashboard(triggerAlert) {
   const [allComponentSchedules, setComponentSchedules] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState('');
+
+  // 2. Search & Strict Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [ptFilter, setPtFilter] = useState([]); 
+  const [milestoneStatusFilter, setMilestoneStatusFilter] = useState(ALL_STATUSES);
+  const [componentStatusFilter, setComponentStatusFilter] = useState(ALL_STATUSES);
+  
+  const milestoneStatuses = ALL_STATUSES;
+  const componentStatuses = ALL_STATUSES;
 
   // Table Sorting States
   const [milestoneSort, setMilestoneSort] = useState({ key: 'target', direction: 'asc' });
@@ -55,12 +70,14 @@ export function useDashboard(triggerAlert) {
 
       setProjects(projectData);
       setProductTypes(typeData);
+      // Initialize Product Type filter with all IDs
+      setPtFilter(typeData.map(pt => String(pt.id)));
+
       setComponents(componentData);
       setComponentUsage(usageMap);
       setMilestones(milestoneMap);
       setComponentSchedules(compSchedMap);
       
-      // 👇 Ensure this is properly assigned here 👇
       setSavedChartsSummary(ganttSummary);
 
       if (projectData.length > 0) setSelectedTag(projectData[0].tag_no);
@@ -113,7 +130,6 @@ export function useDashboard(triggerAlert) {
       if (triggerAlert) triggerAlert('error', `Failed to update received date: ${err.message}`);
     }
   };
-  // --------------------------------
 
   const getMilestoneStatus = (target, actual, today) => {
     if (actual) return actual <= target ? 'Completed before deadline' : 'Completed after deadline';
@@ -172,6 +188,30 @@ export function useDashboard(triggerAlert) {
       .map(([status, counts]) => ({ status, ...counts }));
   };
 
+  // 3. Strict Filtering Logic ported directly from Project Tracker
+  const filteredProjects = projects.filter(p => {
+    const query = searchTerm.toLowerCase();
+    const matchSearch = p.tag_no.toLowerCase().includes(query) || 
+      (p.description || '').toLowerCase().includes(query) ||
+      p.customer.toLowerCase().includes(query) ||
+      p.pm_owner.toLowerCase().includes(query) ||
+      p.engineer_owner.toLowerCase().includes(query);
+
+    const matchPt = ptFilter.includes(String(p.product_type_id));
+    
+    const detailedSummary = getProjectDetailedSummary(p);
+    
+    const milestoneItems = detailedSummary.filter(item => item.milestones > 0);
+    const matchMilestoneStatus = milestoneItems.length === 0 || 
+      milestoneItems.some(item => milestoneStatusFilter.includes(item.status));
+      
+    const componentItems = detailedSummary.filter(item => item.components > 0);
+    const matchComponentStatus = componentItems.length === 0 || 
+      componentItems.some(item => componentStatusFilter.includes(item.status));
+
+    return matchSearch && matchPt && matchMilestoneStatus && matchComponentStatus;
+  });
+
   const handleOpenEditModal = (p) => {
     setEditingProject(p);
     setEditForm({
@@ -202,7 +242,11 @@ export function useDashboard(triggerAlert) {
   const handleSaveGantt = async (slotId, projectTagNo, ganttRows) => {
     try {
       await db.saveGanttChart(slotId, projectTagNo, ganttRows);
-      setSavedChartsSummary(prev => ({ ...prev, [slotId]: projectTagNo }));
+      // Ensure we format the summary exactly how the UI expects it now { tag_no, row_count }
+      setSavedChartsSummary(prev => ({ 
+        ...prev, 
+        [slotId]: { tag_no: projectTagNo, row_count: ganttRows.length }
+      }));
       if (triggerAlert) triggerAlert('success', `Gantt chart saved to Slot ${slotId}`);
       return true;
     } catch (err) {
@@ -236,6 +280,19 @@ export function useDashboard(triggerAlert) {
     }
   };
 
+  // 4. New Function to handle chart deletion
+  const handleDeleteGantt = async (slotId) => {
+    try {
+      await db.deleteGanttChart(slotId);
+      setSavedChartsSummary(prev => ({ ...prev, [slotId]: null }));
+      if (triggerAlert) triggerAlert('success', `Deleted saved chart from Slot ${slotId}`);
+      return true;
+    } catch (err) {
+      if (triggerAlert) triggerAlert('error', `Failed to delete chart: ${err.message}`);
+      return false;
+    }
+  };
+
   return {
     projects, productTypes, components, componentUsage, allMilestones, allComponentSchedules,
     loading, selectedTag, setSelectedTag,
@@ -243,6 +300,11 @@ export function useDashboard(triggerAlert) {
     milestoneSort, setMilestoneSort, componentSort, setComponentSort, urgencySettings,
     sortRows, toggleTableSort, handleActualDateUpdate, handleActualReceivedUpdate, getMilestoneStatus,
     handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary,
-    savedChartsSummary, handleSaveGantt, handleLoadGantt
+    savedChartsSummary, handleSaveGantt, handleLoadGantt, handleDeleteGantt, // Added delete function
+    
+    // New Search & Filter Exports
+    filteredProjects, searchTerm, setSearchTerm, 
+    ptFilter, setPtFilter, milestoneStatusFilter, setMilestoneStatusFilter,
+    componentStatusFilter, setComponentStatusFilter, milestoneStatuses, componentStatuses
   };
 }

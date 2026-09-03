@@ -27,11 +27,24 @@ export default function Dashboard({ dateFormat }) {
     milestoneSort, setMilestoneSort, componentSort, setComponentSort, urgencySettings,
     sortRows, toggleTableSort, handleActualDateUpdate, handleActualReceivedUpdate, getMilestoneStatus,
     handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary,
-    savedChartsSummary, handleSaveGantt, handleLoadGantt
+    savedChartsSummary, handleSaveGantt, handleLoadGantt,
+
+    handleDeleteGantt,
+    filteredProjects, 
+    searchTerm, 
+    setSearchTerm, 
+    ptFilter, 
+    setPtFilter, 
+    milestoneStatusFilter, 
+    setMilestoneStatusFilter,
+    componentStatusFilter, 
+    setComponentStatusFilter, 
+    milestoneStatuses, 
+    componentStatuses  
   } = useDashboard(triggerAlert);
   
   const dashboardCopy = {
-    product: ['Project Dashboard', 'Review the schedule and current progress of a selected project.'],
+    product: ['Project Dashboard', 'Build your personalised Gantt chart for a selected project.'],
     productType: ['Product Type Dashboard', 'Review the consolidated status of the projects under a selected product type.'],
     components: ['Components Dashboard', 'Review the demand of a selected component.']
   };
@@ -59,7 +72,9 @@ export default function Dashboard({ dateFormat }) {
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-gray-900">{dashboardCopy[activeTab][0]}</h2>
-          <p className="text-xs text-gray-500 mt-1">{dashboardCopy[activeTab][1]}</p>
+          <div className="mt-3">
+            <p className="text-sm text-gray-800 mt-2">{dashboardCopy[activeTab][1]}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           {['product', 'productType', 'components'].map(tab => (
@@ -80,6 +95,7 @@ export default function Dashboard({ dateFormat }) {
       {activeTab === 'product' && (
         <ProjectsTab
           projects={projects}
+          productTypes={productTypes}
           selectedTag={selectedTag}
           setSelectedTag={setSelectedTag}
           selectedProject={selectedProject}
@@ -88,7 +104,6 @@ export default function Dashboard({ dateFormat }) {
           dateFormat={dateFormat}
           handleOpenEditModal={handleOpenEditModal}
           
-          /* 👇 New Props for the Tables 👇 */
           allComponents={components}
           allMilestones={allMilestones}
           allComponentSchedules={allComponentSchedules}
@@ -105,7 +120,21 @@ export default function Dashboard({ dateFormat }) {
 
           savedChartsSummary={savedChartsSummary}
           handleSaveGantt={handleSaveGantt}
-          handleLoadGantt={handleLoadGantt}        />
+          handleLoadGantt={handleLoadGantt}    
+          
+          handleDeleteGantt={handleDeleteGantt}
+          filteredProjects={filteredProjects}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          ptFilter={ptFilter}
+          setPtFilter={setPtFilter}
+          milestoneStatusFilter={milestoneStatusFilter}
+          setMilestoneStatusFilter={setMilestoneStatusFilter}
+          componentStatusFilter={componentStatusFilter}
+          setComponentStatusFilter={setComponentStatusFilter}
+          milestoneStatuses={milestoneStatuses}
+          componentStatuses={componentStatuses}        
+        />
       )}
 
       {activeTab === 'productType' && (
