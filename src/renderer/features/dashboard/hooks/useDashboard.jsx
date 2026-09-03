@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as db from '../../../utils/db';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../../utils/scheduler';
+import { normalizeDateValue } from '../../../utils/date';
 import { getUrgencySettings } from '../../../utils/date';
 
 // 1. Standard statuses for the strict dropdown filters
@@ -161,14 +162,14 @@ export function useDashboard(triggerAlert) {
     milestones.forEach(m => {
       if (m.name.toLowerCase() === 'contract signed') return;
       const target = deadlines[m.id] || null;
-      const actual = actuals[m.id] || null;
+      const actual = normalizeDateValue(actuals[m.id]) || null;
       let status = getMilestoneStatus(target, actual, today);
       addStatus(status, 'milestones');
     });
 
     const computedComps = calculateComponentDeadlines(deadlines, compScheds, components, urgencySettings);
     computedComps.forEach(cc => {
-      const receivedDate = receivedDates[cc.component_id] || '';
+      const receivedDate = normalizeDateValue(receivedDates[cc.component_id]) || '';
       let status;
       if (receivedDate) {
         status = receivedDate <= cc.latest_order_date ? 'Completed before deadline' : 'Completed after deadline';

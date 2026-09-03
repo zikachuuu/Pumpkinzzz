@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatDate } from '../../utils/date';
+import { formatDate, getDateInputValue } from '../../utils/date';
 
 export default function FormattedDateInput({ value, onChange, dateFormat, required, className }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -8,7 +8,7 @@ export default function FormattedDateInput({ value, onChange, dateFormat, requir
     return (
       <input
         type="date"
-        value={value || ''}
+        value={getDateInputValue(value, dateFormat)}
         required={required}
         autoFocus
         onChange={onChange}

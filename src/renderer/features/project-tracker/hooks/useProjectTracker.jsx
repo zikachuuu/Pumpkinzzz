@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as db from '../../../utils/db'; 
 import { stringifyCSV } from '../../../utils/csv';
-import { getUrgencySettings } from '../../../utils/date';
+import { getUrgencySettings, normalizeDateValue } from '../../../utils/date';
 import { calculateMilestoneDeadlines, calculateComponentDeadlines } from '../../../utils/scheduler';
 
 // 1. Define standard statuses so dropdown options never jump around
@@ -232,7 +232,7 @@ export function useProjectTracker() {
       if (isContractSigned) return;
 
       const target = deadlines[m.id] || null;
-      const actual = actuals[m.id] || null;
+      const actual = normalizeDateValue(actuals[m.id]) || null;
       
       let status = getMilestoneStatus(target, actual, today);
       addStatus(status, 'milestones');
@@ -240,7 +240,7 @@ export function useProjectTracker() {
 
     const computedComps = calculateComponentDeadlines(deadlines, compScheds, allComponents, urgencySettings);
     computedComps.forEach(cc => {
-      const receivedDate = receivedDates[cc.component_id] || '';
+      const receivedDate = normalizeDateValue(receivedDates[cc.component_id]) || '';
       let status;
       
       if (receivedDate) {

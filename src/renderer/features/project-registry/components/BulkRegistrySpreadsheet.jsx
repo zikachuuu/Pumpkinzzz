@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Trash2, Check, AlertCircle } from 'lucide-react';
 import * as db from '../../../utils/db';
-import { formatDate } from '../../../utils/date';
+import { formatDate, getDateInputValue, normalizeDateValue } from '../../../utils/date';
 
 // --- INLINE DATE INPUT CELL (PORTED FROM TRACKER) ---
 function DateInputCell({ initialValue, onSave, hasErr, dateFormat }) {
@@ -19,7 +19,7 @@ function DateInputCell({ initialValue, onSave, hasErr, dateFormat }) {
     return (
       <input
         type="date"
-        value={value}
+        value={getDateInputValue(value, dateFormat)}
         autoFocus
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
@@ -85,8 +85,8 @@ export default function BulkRegistrySpreadsheet({
         procurement_owner: colIdx.procurement_owner !== -1 && r[colIdx.procurement_owner] ? r[colIdx.procurement_owner].trim() : '',
         production_owner: colIdx.production_owner !== -1 && r[colIdx.production_owner] ? r[colIdx.production_owner].trim() : '',
         fat_owner: colIdx.fat_owner !== -1 && r[colIdx.fat_owner] ? r[colIdx.fat_owner].trim() : '',
-        contract_signed_date: colIdx.contract_signed_date !== -1 && r[colIdx.contract_signed_date] ? r[colIdx.contract_signed_date].trim() : '',
-        ros_date: colIdx.ros_date !== -1 && r[colIdx.ros_date] ? r[colIdx.ros_date].trim() : '',
+        contract_signed_date: colIdx.contract_signed_date !== -1 && r[colIdx.contract_signed_date] ? normalizeDateValue(r[colIdx.contract_signed_date].trim(), dateFormat) : '',
+        ros_date: colIdx.ros_date !== -1 && r[colIdx.ros_date] ? normalizeDateValue(r[colIdx.ros_date].trim(), dateFormat) : '',
         notes: colIdx.notes !== -1 && r[colIdx.notes] ? r[colIdx.notes].trim() : '',
         selected: true
       });
@@ -98,8 +98,6 @@ export default function BulkRegistrySpreadsheet({
   // Strict Immutable Validation mapped perfectly to requested error states
   const validateBulkRows = (rows) => {
     const activeTags = rows.filter(r => r.selected).map(r => r.tag_no.toLowerCase());
-    const dateRegex = /^(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})$/;
-
     return rows.map(r => {
       const errs = {};
 
@@ -134,10 +132,10 @@ export default function BulkRegistrySpreadsheet({
 
       // Date Validation
       if (!r.contract_signed_date) errs.contract_signed_date = 'Required Field is Empty';
-      else if (!dateRegex.test(r.contract_signed_date)) errs.contract_signed_date = 'Invalid Date Format';
+      else if (!normalizeDateValue(r.contract_signed_date, dateFormat)) errs.contract_signed_date = 'Invalid Date Format';
 
       if (!r.ros_date) errs.ros_date = 'Required Field is Empty';
-      else if (!dateRegex.test(r.ros_date)) errs.ros_date = 'Invalid Date Format';
+      else if (!normalizeDateValue(r.ros_date, dateFormat)) errs.ros_date = 'Invalid Date Format';
 
       // Fallback (Though our specific rules catch everything)
       if (Object.keys(errs).length === 0 && r.errors && r.errors.general) errs.general = 'Some Error Occurred';
@@ -173,7 +171,7 @@ export default function BulkRegistrySpreadsheet({
       for (const r of selectedRows) {
         const pt = productTypes.find(p => p.name.toLowerCase() === r.product_type_name.toLowerCase());
         const sched = (allSchedules[pt.id] || []).find(s => s.name.toLowerCase() === r.schedule_name.toLowerCase());
-        const cleanDate = (d) => d.replace(/\//g, '-');
+        const cleanDate = (d) => normalizeDateValue(d, dateFormat);
 
         await db.addProject({
           tag_no: r.tag_no, description: r.description, product_type_id: pt.id, schedule_id: sched.id,

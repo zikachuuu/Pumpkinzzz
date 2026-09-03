@@ -1,6 +1,6 @@
 export const DATE_FORMATS = {
-  iso: 'yyyy/mm/dd',
-  dmy: 'dd/mm/yyyy'
+  iso: 'yyyy-mm-dd',
+  dmy: 'dd-mm-yyyy'
 };
 
 export const DEFAULT_URGENCY_SETTINGS = {
@@ -30,9 +30,9 @@ function getStorage() {
 
 export function normalizeSettings(settings = {}) {
   const storedDateFormat = settings.dateFormat;
-  const dateFormat = storedDateFormat === 'yyyy-mm-dd'
+  const dateFormat = storedDateFormat === 'yyyy-mm-dd' || storedDateFormat === 'yyyy/mm/dd'
     ? DATE_FORMATS.iso
-    : storedDateFormat === 'dd-mm-yyyy'
+    : storedDateFormat === 'dd-mm-yyyy' || storedDateFormat === 'dd/mm/yyyy'
       ? DATE_FORMATS.dmy
       : storedDateFormat || DEFAULT_SETTINGS.dateFormat;
   const urgencySettings = {
@@ -103,15 +103,46 @@ export async function syncSettingsFromJson() {
   }
 }
 
+export function normalizeDateValue(dateValue, preferredFormat = DATE_FORMATS.iso) {
+  if (!dateValue) return '';
+
+  const value = String(dateValue).trim();
+  let year;
+  let month;
+  let day;
+  let match = value.match(/^(\d{4})[-/]([01]?\d)[-/]([0-3]?\d)$/);
+
+  if (match) {
+    [, year, month, day] = match;
+  } else {
+    match = value.match(/^([0-3]?\d)[-/]([01]?\d)[-/](\d{2}|\d{4})$/);
+    if (!match) return '';
+    [, day, month, year] = match;
+    if (year.length === 2) year = `20${year}`;
+  }
+
+  const utcDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (
+    utcDate.getUTCFullYear() !== Number(year) ||
+    utcDate.getUTCMonth() !== Number(month) - 1 ||
+    utcDate.getUTCDate() !== Number(day)
+  ) return '';
+
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function getDateInputValue(dateValue, dateFormat = DATE_FORMATS.iso) {
+  return normalizeDateValue(dateValue, dateFormat);
+}
+
 export function formatDate(dateValue, format = DATE_FORMATS.iso) {
   if (!dateValue) return '-';
-  const value = String(dateValue).slice(0, 10);
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return value;
-  const [, year, month, day] = match;
+  const value = normalizeDateValue(dateValue, format);
+  if (!value) return String(dateValue);
+  const [year, month, day] = value.split('-');
   return format === DATE_FORMATS.dmy || format === 'dd-mm-yyyy'
-    ? `${day}/${month}/${year}`
-    : `${year}/${month}/${day}`;
+    ? `${day}-${month}-${year}`
+    : `${year}-${month}-${day}`;
 }
 
 export function getStoredDateFormat() {

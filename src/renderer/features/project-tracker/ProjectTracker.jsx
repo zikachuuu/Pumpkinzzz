@@ -49,7 +49,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
             className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition"
           >
             <Download className="w-4 h-4 text-gray-500" />
-            <span>Export Projects CSV</span>
+            <span>Export ALL Projects as Spreadsheet (.csv file)</span>
           </button>
           <button
             onClick={() => {

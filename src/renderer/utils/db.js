@@ -3,6 +3,8 @@
  * Utilizes Electron IPC to perform SQLite database queries and transactions.
  */
 
+import { normalizeDateValue } from './date';
+
 const api = window.electronAPI;
 
 /**
@@ -244,7 +246,12 @@ export async function getProjects() {
     JOIN schedules s ON p.schedule_id = s.id
     ORDER BY p.tag_no ASC
   `;
-  return api.dbQuery(sql);
+  const projects = await api.dbQuery(sql);
+  return projects.map(project => ({
+    ...project,
+    contract_signed_date: normalizeDateValue(project.contract_signed_date),
+    ros_date: normalizeDateValue(project.ros_date)
+  }));
 }
 
 export async function addProject(p) {

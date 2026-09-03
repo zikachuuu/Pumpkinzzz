@@ -1,3 +1,5 @@
+import { normalizeDateValue } from './date';
+
 /**
  * Core Scheduling & Deadline Propagation Engine for Pumpkinzzz
  */
@@ -17,15 +19,16 @@ export function calculateMilestoneDeadlines(project, milestones) {
 
   // 1. Initialize default/root milestones
   // Contract Signed has an actual date
-  const contractSignedDate = project.contract_signed_date; 
+  const contractSignedDate = normalizeDateValue(project.contract_signed_date);
   // ROS has a targeted date
-  const rosDate = project.ros_date;
+  const rosDate = normalizeDateValue(project.ros_date);
 
   // Helper function to add/subtract days to a date string
   function addDays(dateStr, days) {
     if (!dateStr) return null;
-    const date = new Date(dateStr);
-    date.setDate(date.getDate() + days);
+    const [year, month, day] = normalizeDateValue(dateStr).split('-').map(Number);
+    if (!year || !month || !day) return null;
+    const date = new Date(Date.UTC(year, month - 1, day + days));
     return date.toISOString().split('T')[0];
   }
 
@@ -74,7 +77,7 @@ export function calculateMilestoneDeadlines(project, milestones) {
 
     // If actual completion date exists for this anchor, use actual date
     if (actualDates[milestone.id]) {
-      deadlines[milestone.id] = actualDates[milestone.id];
+      deadlines[milestone.id] = normalizeDateValue(actualDates[milestone.id]);
       calculating.delete(milestone.id);
       return actualDates[milestone.id];
     }
@@ -119,16 +122,17 @@ export function calculateComponentDeadlines(milestoneDeadlines, componentSchedul
   const today = new Date().toISOString().split('T')[0];
 
   function getDaysBetween(date1, date2) {
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
+    const d1 = new Date(`${normalizeDateValue(date1)}T00:00:00Z`);
+    const d2 = new Date(`${normalizeDateValue(date2)}T00:00:00Z`);
     const diffTime = d2 - d1;
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
   function addDays(dateStr, days) {
     if (!dateStr) return null;
-    const date = new Date(dateStr);
-    date.setDate(date.getDate() + days);
+    const [year, month, day] = normalizeDateValue(dateStr).split('-').map(Number);
+    if (!year || !month || !day) return null;
+    const date = new Date(Date.UTC(year, month - 1, day + days));
     return date.toISOString().split('T')[0];
   }
 
