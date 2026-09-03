@@ -1,8 +1,9 @@
 {
   "name": "pumpkinzzz",
   "version": "1.0.0",
+  "type": "module",
   "description": "Project schedule tracking application for manufacturing lifecycle tracking",
-  "main": "src/main.js",
+  "main": "src/main.cjs",
   "scripts": {
     "dev:frontend": "vite",
     "dev:electron": "electron .",
