@@ -12,6 +12,7 @@ import ComponentTable from '../../project-tracker/components/ComponentTable';
 const dayMs = 1000 * 60 * 60 * 24;
 const daysBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / dayMs);
 const GANTT_COLORS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500', 'bg-purple-500', 'bg-orange-500'];
+const GANTT_ACTUAL_COLORS = ['bg-indigo-300', 'bg-emerald-300', 'bg-amber-300', 'bg-rose-300', 'bg-cyan-300', 'bg-purple-300', 'bg-orange-300'];
 
 export default function ProjectsTab({
   projects, selectedTag, setSelectedTag, selectedProject, detailedSummary, datedMilestones, dateFormat, handleOpenEditModal,
@@ -561,6 +562,7 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
                 const leftPos = daysBetween(timelineData.minDate, row.startStr) * PIXELS_PER_DAY;
                 const barWidth = row.duration * PIXELS_PER_DAY;
                 const colorClass = GANTT_COLORS[idx % GANTT_COLORS.length];
+                const actualColorClass = GANTT_ACTUAL_COLORS[idx % GANTT_ACTUAL_COLORS.length];
                 const isShort = row.duration * PIXELS_PER_DAY < 25;
 
                 let actLeftPos, actBarWidth, isActShort;
@@ -580,10 +582,10 @@ function GanttRenderer({ ganttRows, datedMilestones, updateGanttRow, removeGantt
 
                     {row.hasValidActual && (
                       <>
-                        <div className="absolute rounded shadow-sm flex items-center justify-center transition-all bg-emerald-400 top-1/2 bottom-2 mt-1" style={{ left: `${actLeftPos}px`, width: `${actBarWidth}px` }} title={`Actual Duration: ${row.actDuration} Days`}>
+                        <div className={`absolute rounded shadow-sm flex items-center justify-center transition-all ${actualColorClass} top-1/2 bottom-2 mt-1`} style={{ left: `${actLeftPos}px`, width: `${actBarWidth}px` }} title={`Actual Duration: ${row.actDuration} Days`}>
                           {!isActShort && <span className="text-[9px] font-extrabold text-white drop-shadow-md px-1 truncate">{row.actDuration} days</span>}
                         </div>
-                        {isActShort && <span className="absolute flex items-center text-[9px] font-bold text-emerald-600 top-1/2 bottom-2 mt-1" style={{ left: `${actLeftPos + actBarWidth + 4}px` }}>{row.actDuration} days</span>}
+                        {isActShort && <span className="absolute flex items-center text-[9px] font-bold text-gray-600 top-1/2 bottom-2 mt-1" style={{ left: `${actLeftPos + actBarWidth + 4}px` }}>{row.actDuration} days</span>}
                       </>
                     )}
 
