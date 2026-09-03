@@ -24,7 +24,7 @@ export default function ProjectsTab({
   milestoneStatusFilter, setMilestoneStatusFilter, componentStatusFilter, setComponentStatusFilter,
   milestoneStatuses, componentStatuses, productTypes
 }) {
-  const [showDetails, setShowDetails] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
   
   // Gantt State
   const [ganttRows, setGanttRows] = useState([]);

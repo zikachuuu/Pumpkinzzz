@@ -261,7 +261,7 @@ export default function ProductTypeManager() {
         ? 'Existing component found and attached successfully!'
         : 'New component created and attached successfully!');
       loadGlobalComponents();
-      await handleSelectProductType(selectedPt);
+      await handleSelectProductType(selectedPt, true);
     } catch (err) {
       triggerAlert('error', `Failed to create component: ${err.message}`);
     }
@@ -274,7 +274,7 @@ export default function ProductTypeManager() {
       await db.attachComponentToProductType(parseInt(selectedGlobalComponentId), selectedPt.id);
       setSelectedGlobalComponentId('');
       triggerAlert('success', 'Component attached successfully!');
-      await handleSelectProductType(selectedPt);
+      await handleSelectProductType(selectedPt, true);
     } catch (err) {
       triggerAlert('error', `Failed to attach component: ${err.message}`);
     }

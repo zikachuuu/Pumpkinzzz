@@ -47,7 +47,7 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                     <select
                       value={selectedGlobalComponentId}
                       onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                      className="block w-[58%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                     >
                       <option value="">-- Select a component --</option>
                       {availableComponents.map(component => (
@@ -65,7 +65,7 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                           setSelectedGlobalComponentId(''); // Reset selection when filter changes
                       }}
                       title="Filter by Product Type"
-                      className="block w-1/2 rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
+                      className="block w-[42%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
                     >
                       <option value="">All Product Types</option>
                       {productTypes.map(pt => (

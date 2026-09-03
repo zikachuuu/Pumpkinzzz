@@ -47,9 +47,9 @@ export function useProductTypeConfig(triggerAlert) {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // 1. Select a Product Type and load its specific data
-const handleSelectProductType = async (pt) => {
+  const handleSelectProductType = async (pt, preserveActiveTab = false) => {
     setSelectedPt(pt);
-    setActiveTab('schedules');
+    if (!preserveActiveTab) setActiveTab('schedules');
     setIsDetailLoading(true);
     
     try {
@@ -121,7 +121,7 @@ const handleSelectProductType = async (pt) => {
     
     await db.deleteSchedule(scheduleId, selectedPt.id);
     triggerAlert('success', 'Schedule deleted successfully.');
-    await handleSelectProductType(selectedPt);
+    await handleSelectProductType(selectedPt, true);
     return true;
   };
 
@@ -165,7 +165,7 @@ const handleSelectProductType = async (pt) => {
     if (!confirm(`Are you sure you want to detach component "${compName}"?`)) return false;
     await db.detachComponentFromProductType(compId, selectedPt.id);
     triggerAlert('success', 'Component detached successfully.');
-    await handleSelectProductType(selectedPt);
+    await handleSelectProductType(selectedPt, true);
     return true;
   };
 
@@ -190,7 +190,7 @@ const handleSelectProductType = async (pt) => {
       }
       await db.updateProductTypeStatus(selectedPt.id);
       triggerAlert('success', 'Component schedule lead times saved and status updated!');
-      await handleSelectProductType(selectedPt);
+      await handleSelectProductType(selectedPt, true);
     } catch (err) {
       triggerAlert('error', `Failed to save lead times: ${err.message}`);
     } finally {

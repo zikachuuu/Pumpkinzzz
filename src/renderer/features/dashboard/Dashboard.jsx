@@ -45,8 +45,8 @@ export default function Dashboard({ dateFormat }) {
   
   const dashboardCopy = {
     product: ['Project Dashboard', 'Build your personalised Gantt chart for a selected project.'],
-    productType: ['Product Type Dashboard', 'Review the consolidated status of the projects under a selected product type.'],
-    components: ['Components Dashboard', 'Review the demand of a selected component.']
+    productType: ['Product Type Dashboard', 'U/C'],
+    components: ['Components Dashboard', 'U/C']
   };
 
   if (loading) {
