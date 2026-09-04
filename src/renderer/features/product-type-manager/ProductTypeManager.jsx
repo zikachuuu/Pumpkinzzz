@@ -1200,7 +1200,7 @@ export default function ProductTypeManager() {
               {(!editingMilestone || (editingMilestone.name.toLowerCase() !== 'contract signed' && editingMilestone.name.toLowerCase() !== 'ros')) && (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase">Anchor / Basis Milestone</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase">Anchor Milestone</label>
                     <select
                       value={milestoneForm.anchor_id}
                       onChange={(e) => setMilestoneForm({ ...milestoneForm, anchor_id: e.target.value })}
@@ -1236,8 +1236,8 @@ export default function ProductTypeManager() {
                         onChange={(e) => setMilestoneForm({ ...milestoneForm, direction: e.target.value })}
                         className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                       >
-                        <option value="after">Days After Anchor</option>
-                        <option value="before">Days Before Anchor</option>
+                        <option value="after">After Anchor</option>
+                        <option value="before">Before Anchor</option>
                       </select>
                     </div>
                   </div>

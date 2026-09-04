@@ -124,7 +124,7 @@ export default function SchedulesTab({
 
     const formatMilestoneRelation = (m, milestoneList) => {
         const isDefault = m.name.toLowerCase() === 'contract signed' || m.name.toLowerCase() === 'ros';
-        if (isDefault) return 'Root Boundary';
+        if (isDefault) return 'Default Milestone';
         const anchor = milestoneList.find(a => a.id === m.anchor_id);
         const anchorName = anchor ? anchor.name : 'Anchor';
         const absOffset = Math.abs(m.offset);
@@ -144,7 +144,7 @@ export default function SchedulesTab({
                     className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-semibold shadow transition"
                     >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add</span>
+                    <span>New Schedule</span>
                     </button>
                 </div>
 
@@ -207,25 +207,28 @@ export default function SchedulesTab({
                 ) : (
                     <div className="space-y-8">
                     {/* Milestones Header */}
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                        <div>
-                        <h3 className="font-bold text-gray-900 text-lg">
-                            Milestones of Schedule: {selectedSchedule.name}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Schedules require Contract Signed and ROS as boundaries. Define custom nodes and recursive attachments.
-                        </p>
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-gray-100 pb-4">
+                        <div className="flex-1 md:pr-8">
+                            <h3 className="font-bold text-gray-900 text-lg">
+                                Milestones of Schedule: {selectedSchedule.name}
+                            </h3>
+                            <p className="text-sm text-gray-800 mt-3">
+                                All schedules consists of 2 default milestones: <span className="font-semibold">Contract Signed</span> and <span className="font-semibold">ROS</span>.
+                            </p>
+                            <p className="text-sm text-gray-800 mt-2">
+                                Create additional milestones and define their relationships (in terms of offset days) to the default milestones or other milestones in this schedule.
+                            </p>
                         </div>
                         <button
-                        onClick={() => handleOpenMilestoneModal(null)}
-                        className="flex items-center space-x-1.5 px-3.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-bold shadow-sm transition"
+                            onClick={() => handleOpenMilestoneModal(null)}
+                            className="flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-bold shadow-sm transition shrink-0 whitespace-nowrap"
                         >
-                        <Plus className="w-4 h-4" />
-                        <span>New Custom Milestone</span>
+                            <Plus className="w-4 h-4 shrink-0" />
+                            <span>New Milestone</span>
                         </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 border-b border-gray-100 pb-4">
+                    <div className="flex flex-wrap gap-3">
                         {[
                         ['tree', 'Relationship Tree'],
                         ['timeline', 'Chronological Timeline'],
@@ -267,7 +270,7 @@ export default function SchedulesTab({
                                     <p className="text-[10px] text-indigo-200 mt-0.5">{rootNode.remark || 'Boundary Milestone'}</p>
                                 </div>
                                 <span className="text-[10px] bg-indigo-800 border border-indigo-700 text-indigo-100 px-1.5 py-0.5 rounded font-bold">
-                                    ROOT BOUNDARY
+                                    DEFAULT MILESTONE
                                 </span>
                                 </div>
                                 
@@ -289,9 +292,9 @@ export default function SchedulesTab({
                             <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Milestone</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Anchor Basis</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Anchor Milestone</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Days</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Timing</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Chronology</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks</th>
                                 <th className="relative px-6 py-3"></th>
                             </tr>
@@ -304,13 +307,13 @@ export default function SchedulesTab({
                                 <tr key={m.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap font-semibold text-gray-900">{m.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                    {isDefault ? 'None (Root Boundary)' : anchor ? anchor.name : 'Unknown Anchor'}
+                                    {isDefault ? '-' : anchor ? anchor.name : 'Unknown Anchor'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap font-medium">
                                     {isDefault ? '0' : Math.abs(m.offset)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap font-medium">
-                                    {isDefault ? 'Root boundary' : m.offset < 0 ? 'Before anchor' : 'After anchor'}
+                                    {isDefault ? '-' : m.offset < 0 ? 'Before Anchor' : 'After Anchor'}
                                     </td>
                                     <td className="px-6 py-4 text-xs max-w-xs truncate text-gray-500" title={m.remark}>
                                     {m.remark || '-'}

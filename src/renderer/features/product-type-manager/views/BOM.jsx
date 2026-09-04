@@ -131,10 +131,12 @@ component => !attachedComponents.some(attached => attached.id === component.id)
         {/* Right List: Attached Components Table */}
         <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
             <h3 className="font-bold text-gray-900 text-lg mb-2">BOM - Bill of Materials</h3>
-            <p className="text-xs text-gray-500 mb-4">
-            Components list of this product type. You can attach existing components from other product types or create new ones globally.
+            <p className="text-sm text-gray-800 mt-3 mb-2">
+                Component list for this product type. You can attach existing components from other product types or create new ones globally. 
             </p>
-
+            <p className="text-xs text-gray-500 flex items-center flex-wrap gap-1 leading-relaxed mb-5">
+              * Note that the remark field for each component is reflected across all product types for which it is attached (a.k.a global)
+            </p>
             {attachedComponents.length === 0 ? (
             <div className="p-16 text-center text-gray-400">
                 <Info className="w-12 h-12 mx-auto mb-4 text-gray-300" />
