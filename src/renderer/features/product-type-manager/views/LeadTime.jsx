@@ -17,9 +17,17 @@ export default function LeadTimesTab({
         <div className="flex items-center justify-between border-b border-gray-100 pb-4">
             <div>
             <h3 className="font-bold text-gray-900 text-lg">Procurement Lead Times of Each Schedules</h3>
-            <p className="text-xs text-gray-500 mt-1">
-                Specify the delivery lead time (in days) and the anchor milestone from which the countdown calculates.
+            <p className="text-sm text-gray-800 mt-3">
+                Set the Anchor Milestone and Lead Time (in days) for each attached component of the product type. 
             </p>
+            <ul className="list-disc list-inside text-sm text-gray-800 mb-2 ml-2 space-y-2 mt-3">
+                <li><span className="font-semibold">Anchor Milestone:</span> The component must arrive latest by the targeted deadline of the selected milestone</li>
+                <li><span className="font-semibold">Lead Time:</span> The number of days for the component to be delivered after ordering</li>
+            </ul>
+            <p className="text-sm text-gray-800 mt-3">
+                Thus, the component must be ordered latest by <span className="font-semibold">Lead Time</span> days before the <span className="font-semibold">Anchor Milestone</span> deadline.
+            </p>
+
             </div>
             <button
             onClick={handleSaveLeadTimes}
@@ -78,7 +86,9 @@ export default function LeadTimesTab({
                     {!getScheduleValidity(s).isValid && (
                     <p className="text-xs text-red-700">{getScheduleValidity(s).reason}</p>
                     )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    {/* 👇 Updated Grid Classes Here 👇 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {attachedComponents.map(c => {
                         const key = `${c.id}-${s.id}`;
                         const setting = leadTimeSettings[key] || { anchor_id: '', lead_time: 0 };

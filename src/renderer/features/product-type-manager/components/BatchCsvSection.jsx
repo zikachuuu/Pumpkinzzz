@@ -42,7 +42,7 @@ export default function BatchCsvSection({ open, onToggle, onDownloadPtTemplate, 
             description={
               <>
                 <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Download a blank spreadsheet template as <Tag color="blue">Format A</Tag> (.csv file) containing only 2 columns 
+                  Download a blank spreadsheet template (.csv file) in <Tag color="blue">Format A</Tag> containing only 2 columns 
                 </p>
                 <ul className="list-disc list-inside text-sm text-gray-800 mb-2 ml-2 space-y-1">
                   <li>Product Type</li>
@@ -65,7 +65,7 @@ export default function BatchCsvSection({ open, onToggle, onDownloadPtTemplate, 
             description={
               <>
                 <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Export all existing product types and ALL associated data as <Tag color="purple">Format B</Tag>, including:
+                  Export all existing product types and ALL associated data as a spreadsheet (.csv file) in <Tag color="purple">Format B</Tag>, including:
                 </p>
                 <ul className="list-disc list-inside text-sm text-gray-800 mb-2 ml-2 space-y-1">
                   <li>Schedules and Milestones</li>
@@ -89,7 +89,7 @@ export default function BatchCsvSection({ open, onToggle, onDownloadPtTemplate, 
             description={
               <>
                 <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Export all existing product types and associated BOM ONLY as <Tag color="blue">Format A</Tag>
+                  Export all existing product types and associated BOM ONLY as a spreadsheet (.csv file) in <Tag color="blue">Format A</Tag>
                 </p>
                 <p className="text-sm text-gray-800 mb-2">Matches the 2-column format of the blank spreadsheet template (.csv file).</p>
                 <p className="text-xs text-gray-500 flex items-center gap-1">

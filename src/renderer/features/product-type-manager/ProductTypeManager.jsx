@@ -997,8 +997,10 @@ export default function ProductTypeManager() {
           
           <div className="flex items-center space-x-3">
             <button
+              key="get-schedule-template"
+              type="button"
               onClick={handleDownloadSchedTemplate}
-              className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-xs font-semibold bg-white transition"
+              className="flex items-center space-x-2 px-3.5 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 active:bg-white active:text-gray-700 text-xs font-semibold bg-white transition focus:outline-none focus:ring-0"
             >
               <Download className="w-3.5 h-3.5 text-gray-500" />
               <span>Get Schedule Template</span>
@@ -1463,7 +1465,11 @@ export default function ProductTypeManager() {
                   </button>
                 </div>
                 <button
-                  onClick={() => handleSelectProductType(pt)}
+                  type="button"
+                  onClick={(event) => {
+                    event.currentTarget.blur();
+                    handleSelectProductType(pt);
+                  }}
                   className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-800 transition"
                 >
                   <span>Manage Config</span>
