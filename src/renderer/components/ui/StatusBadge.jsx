@@ -27,7 +27,7 @@ export default function StatusBadge({ status, count, typeLabel, textOverride }) 
   }
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center whitespace-nowrap ${colorClass}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-flex items-center whitespace-nowrap ${colorClass}`}>
       {displayText}
     </span>
   );
