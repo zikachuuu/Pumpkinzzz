@@ -19,6 +19,7 @@ import {
 } from '../../utils/csv';
 import Alert from '../../components/ui/Alert';
 import Modal from '../../components/ui/Modal';
+import StatusBadge from '../../components/ui/StatusBadge';
 import { useProductType } from './hooks/useProductType';
 import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 
@@ -969,12 +970,6 @@ export default function ProductTypeManager() {
     // ------------------------------------------
     // DETAIL VIEW
     // ------------------------------------------
-    const statusColors = {
-      'valid': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      'sub-valid': 'bg-amber-100 text-amber-800 border-amber-200',
-      'invalid': 'bg-red-100 text-red-800 border-red-200'
-    };
-
     return (
       <div className="space-y-6">
         {/* Detail View Header */}
@@ -992,9 +987,7 @@ export default function ProductTypeManager() {
             <div>
               <div className="flex items-center space-x-3">
                 <h2 className="text-2xl font-bold text-gray-900">{selectedPt.name}</h2>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColors[selectedPt.status]}`}>
-                  {selectedPt.status.toUpperCase()}
-                </span>
+                <StatusBadge status={selectedPt.status} />
               </div>
               <p className="text-sm text-gray-500 mt-1">
                 Configure schedules, milestones, attachments, and component lead times.
@@ -1290,12 +1283,6 @@ export default function ProductTypeManager() {
   // ------------------------------------------
   // LIST / OVERVIEW SCREEN
   // ------------------------------------------
-  const statusColors = {
-    'valid': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    'sub-valid': 'bg-amber-100 text-amber-800 border-amber-200',
-    'invalid': 'bg-red-100 text-red-800 border-red-200'
-  };
-
   return (
     <div className="space-y-6">
       {/* Product type registration */}
@@ -1309,10 +1296,10 @@ export default function ProductTypeManager() {
             <p className="text-sm text-gray-800 mt-3">
               To register new product types:
             </p>
-            <ol className="list-decimal list-inside text-sm text-gray-800 mt-2 space-y-1">
-              <li>Create a new product type by clicking the <span className="font-bold">+ New Product Type</span> button. Newly created product types are initially <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800 border border-red-200">INVALID</span>.</li>
+            <ol className="list-decimal list-inside text-sm text-gray-800 mt-2 space-y-1 ml-4">
+              <li>Create a new product type by clicking the <span className="font-bold"> + Register New Product Type</span> button. Newly created product types are initially <StatusBadge status="invalid" />.</li>
               <li>Furnish the details (Schedules & Milestones, BOM, Procurement Lead Times) by clicking the <span className="font-bold">Manage Config</span> button.</li>
-              <li>Only product types that are <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">SUB-VALID</span> and <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">VALID</span> can be registered under a project.</li>
+              <li>Only product types that are <StatusBadge status="sub-valid" /> and <StatusBadge status="valid" /> can be registered under a project.</li>
             </ol>
             <button
               type="button"
@@ -1333,7 +1320,7 @@ export default function ProductTypeManager() {
             className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm transition"
           >
             <Plus className="w-4 h-4" />
-            <span>New Product Type</span>
+            <span>Register New Product Type</span>
           </button>
         </div>
       </div>
@@ -1438,9 +1425,7 @@ export default function ProductTypeManager() {
                   )}
                   
                   <span className="inline-flex items-center gap-1">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusColors[pt.status]}`}>
-                      {pt.status.toUpperCase()}
-                    </span>
+                    <StatusBadge status={pt.status} />
                     <button type="button" onClick={() => setShowValidityModal(true)} className="p-1 text-gray-400 hover:text-indigo-600" title={`Why is this product type ${pt.status}?`}>
                       <Info className="w-3.5 h-3.5" />
                     </button>
@@ -1502,7 +1487,7 @@ export default function ProductTypeManager() {
         }}
       >
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed mb-4">
-          <strong>Notice:</strong> Newly created product types are initialized as <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800 border border-red-200">INVALID</span>. 
+          <strong>Notice:</strong> Newly created product types are initialized as <StatusBadge status="invalid" />. 
           You must promptly configure schedules, milestones, BOM, and procurement lead times before this product type can be selected for projects.
           
           <button

@@ -2,6 +2,9 @@ import React from 'react';
 
 // Single source of truth for status colors across the entire app
 export const STATUS_COLORS = {
+  'valid': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'sub-valid': 'bg-amber-100 text-amber-800 border-amber-200',
+  'invalid': 'bg-red-100 text-red-800 border-red-200',
   'completed': 'bg-emerald-100 text-emerald-700 border-emerald-200',
   'completed before deadline': 'bg-emerald-100 text-emerald-700 border-emerald-200',
   'completed after deadline': 'bg-orange-100 text-orange-700 border-orange-200',

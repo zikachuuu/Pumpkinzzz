@@ -6,6 +6,7 @@ import {
 import * as db from '../../utils/db';
 import { parseCSV, stringifyCSV } from '../../utils/csv';
 import Alert from '../../components/ui/Alert.jsx';
+import StatusBadge from '../../components/ui/StatusBadge.jsx';
 import ModalValidityStatusGuide from '../product-type-manager/components/ValidityStatusGuide.jsx';
 import FormattedDateInput from '../../components/ui/FormattedDateInput.jsx';
 
@@ -259,7 +260,7 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
               You can either upload a spreadsheet (.csv file) for batch registration or fill in the manual form below. Ensure that all required fields are completed and that Tag Nos are unique.
             </p>
             <p className="text-sm text-gray-800 mt-3">
-              Every project is affiliated with a product type and a schedule. Only product types that are <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">SUB-VALID</span> and <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">VALID</span> can be registered under a project.
+              Every project is affiliated with a product type and a schedule. Only product types that are <StatusBadge status="sub-valid" /> and <StatusBadge status="valid" /> can be registered under a project.
             </p>
           </div>
 

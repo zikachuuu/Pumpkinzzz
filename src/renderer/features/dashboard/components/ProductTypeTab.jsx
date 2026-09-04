@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
+import StatusBadge from '../../../components/ui/StatusBadge';
 
 export default function ProductTypeTab({ productTypes, projects }) {
   return (
@@ -14,12 +15,7 @@ export default function ProductTypeTab({ productTypes, projects }) {
           <div key={type.id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between gap-2">
               <span className="font-bold text-sm">{type.name}</span>
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                type.status === 'valid' ? 'bg-emerald-50 text-emerald-700' : 
-                type.status === 'sub-valid' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-              }`}>
-                {type.status}
-              </span>
+              <StatusBadge status={type.status} />
             </div>
             <p className="text-xs text-gray-500 mt-3">{type.schedule_count} schedules / {type.component_count} components</p>
             <p className="text-xs text-gray-500 mt-1">

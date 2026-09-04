@@ -1,5 +1,5 @@
 {
-  "dateFormat": "yyyy/mm/dd",
+  "dateFormat": "yyyy-mm-dd",
   "startOfWeek": 0,
   "urgencySettings": {
     "milestoneUrgentDays": 30,
