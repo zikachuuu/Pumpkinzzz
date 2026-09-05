@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, Download, Upload, AlertTriangle, Check } from 'lucide-react';
 import StatusBadge from '../../../components/ui/StatusBadge';
+import Tag from '../../../components/ui/Tag';
 
 export default function BatchProductTypeSection({ open, onToggle, onDownloadPtTemplate, onImport, onExportFull, onExportPartial }) {
   return (
@@ -170,14 +171,3 @@ function ActionRow({ description, action }) {
   );
 }
 
-function Tag({ color, children }) {
-  const colors = {
-    blue: 'bg-blue-100 text-blue-800 border-blue-200',
-    purple: 'bg-purple-100 text-purple-800 border-purple-200'
-  };
-  return (
-    <span className={`inline-block border text-[9px] font-bold px-1.5 py-0 rounded uppercase tracking-wide ${colors[color]}`}>
-      {children}
-    </span>
-  );
-}

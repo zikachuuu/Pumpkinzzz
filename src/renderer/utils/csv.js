@@ -202,3 +202,61 @@ export function stringifyFullProductTypeBackup(productRows) {
   const headers = ['Product Type Name', 'Component Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 'Component Anchor Milestone', 'Lead Time (Days)', 'Product Type Status'];
   return stringifyCSV(headers, productRows);
 }
+
+/**
+ * FORMAT A: BOM ONLY
+ * Strict 2-column format for single Product Type
+ */
+export function stringifyFormatA(productType, components) {
+  const headers = ['Product Type', 'Attached Components'];
+  const compString = components.map(c => c.name).join(';');
+  return stringifyCSV(headers, [[productType.name, compString]]);
+}
+
+/**
+ * FORMAT B: FULL DATA
+ * Strict 10-column format for single Product Type
+ */
+export function stringifyFormatB(productType, components, schedules, milestonesMap, componentSchedulesMap) {
+  const headers = [
+    'Product Type', 'Attached Components', 'Schedule Name', 'Milestone Name',
+    'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 
+    'Component Name', 'Component Anchor Milestone', 'Lead Time (Days)'
+  ];
+  
+  const rows = [];
+  const compString = components.map(c => c.name).join(';');
+  const baseColumns = [productType.name, compString];
+
+  for (const s of schedules) {
+    const milestones = milestonesMap[s.id] || [];
+    const compScheds = componentSchedulesMap[s.id] || [];
+
+    // Edge case: Schedule has no milestones/components yet
+    if (milestones.length === 0 && compScheds.length === 0) {
+      rows.push([...baseColumns, s.name, '', '', '', '', '', '', '']);
+      continue;
+    }
+
+    // 1. Write Milestones
+    for (const m of milestones) {
+      const anchor = milestones.find(a => a.id === m.anchor_id);
+      rows.push([
+        ...baseColumns, s.name, m.name, anchor ? anchor.name : '',
+        m.offset.toString(), m.remark || '', '', '', ''
+      ]);
+    }
+
+    // 2. Write Component Lead Times
+    for (const cs of compScheds) {
+      const anchorMilestone = milestones.find(m => m.id === cs.anchor_milestone_id);
+      rows.push([
+        ...baseColumns, s.name, '', '', '', '',
+        cs.component_name || `Component #${cs.component_id}`, // We'll pass the name down
+        anchorMilestone ? anchorMilestone.name : '',
+        cs.lead_time.toString()
+      ]);
+    }
+  }
+  return stringifyCSV(headers, rows);
+}

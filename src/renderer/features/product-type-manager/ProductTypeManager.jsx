@@ -12,6 +12,9 @@ import Alert from '../../components/ui/Alert';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ModalValidityStatusGuide from './components/ValidityStatusGuide';
+import ExportScheduleModal from './components/ExportScheduleModal'; // Your new Modal from Step 1
+import { selectAndParseImportFile } from './services/importCsvService';
+import ImportWizardModal from './components/ImportWizardModal';
 
 // View Imports
 import ScheduleMilestoneTab from './views/Schedule-Milestone';
@@ -22,6 +25,8 @@ import LeadTimesTab from './views/LeadTime';
 import { useProductType } from './hooks/useProductType';
 import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 import { useProductTypeCsv } from './hooks/useProductTypeCsv';
+
+import { exportFormatA, exportFormatB } from './services/exportCsvService';
 
 export default function ProductTypeManager() {
   const [loading, setLoading] = useState(true);
@@ -38,6 +43,19 @@ export default function ProductTypeManager() {
   // CSV Section Toggle States
   const [showBatchCsvOptions, setShowBatchCsvOptions] = useState(false);
   const [showScheduleCsvOptions, setShowScheduleCsvOptions] = useState(false);
+  const [showExportScheduleModal, setShowExportScheduleModal] = useState(false); 
+  const [wizardPayload, setWizardPayload] = useState(null);
+
+  const handleUniversalImportClick = async () => {
+    try {
+      const payload = await selectAndParseImportFile();
+      if (payload) {
+        setWizardPayload(payload);
+      }
+    } catch (err) {
+      triggerAlert('error', err.message);
+    }
+  };
 
   // Detail View: Schedules & Milestones State
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
@@ -235,10 +253,16 @@ export default function ProductTypeManager() {
         <BatchScheduleSection 
           open={showScheduleCsvOptions}
           onToggle={() => setShowScheduleCsvOptions(prev => !prev)}
-          onDownloadTemplate={handleDownloadSchedTemplate}
-          onExportSchedules={handleExportSchedules}
-          onExportMilestones={handleExportMilestonesOnly}
-          onImport={handleImportSchedules}
+          onExportBomOnly={() => exportFormatA(selectedPt, triggerAlert)}
+          onOpenExportFullModal={() => setShowExportScheduleModal(true)}
+          onImport={() => { handleUniversalImportClick(); }}
+        />
+
+        <ExportScheduleModal
+          isOpen={showExportScheduleModal}
+          onClose={() => setShowExportScheduleModal(false)}
+          schedules={schedules}
+          onConfirmExport={(selectedIds) => exportFormatB(selectedPt, selectedIds, triggerAlert)}
         />
 
         <Alert alert={alert} />
@@ -345,6 +369,18 @@ export default function ProductTypeManager() {
             </div>
           </form>
         </Modal>
+
+        <ImportWizardModal 
+          isOpen={!!wizardPayload} 
+          importPayload={wizardPayload}
+          existingProductTypes={productTypes}
+          onClose={() => setWizardPayload(null)}
+          triggerAlert={triggerAlert}
+          onSuccess={() => {          
+            loadProductTypes();
+            loadGlobalComponents();
+          }}
+        />
       </div>
     );
   }
@@ -486,6 +522,18 @@ export default function ProductTypeManager() {
       </Modal>
 
       <ModalValidityStatusGuide isOpen={showValidityModal} onClose={() => setShowValidityModal(false)} />
+
+      <ImportWizardModal 
+        isOpen={!!wizardPayload} 
+        importPayload={wizardPayload}
+        existingProductTypes={productTypes}
+        onClose={() => setWizardPayload(null)}
+        triggerAlert={triggerAlert} // 👈 ADD THIS
+        onSuccess={() => {          // 👈 ADD THIS
+          loadProductTypes();
+          loadGlobalComponents();
+        }}
+      />
     </div>
   );
 }
