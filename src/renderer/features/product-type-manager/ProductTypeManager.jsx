@@ -5,9 +5,9 @@ import {
 import * as db from '../../utils/db';
 
 // Component Imports
-import BatchCsvSection from './components/BatchCsvSection';
-import ScheduleCsvSection from './components/ScheduleCsvSection';
-import ImportReview from './components/ImportReview';
+import BatchProductTypeSection from './components/BatchProductTypeSection';
+import BatchScheduleSection from './components/BatchScheduleSection';
+import ProductTypeImportReview from './views/ProductTypeImportReview';
 import Alert from '../../components/ui/Alert';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -202,7 +202,7 @@ export default function ProductTypeManager() {
 
   // --- VIEWS ---
   if (importReview) return (
-    <ImportReview
+    <ProductTypeImportReview
       importReview={importReview}
       loading={loading}
       onSetDecisionForAll={setImportDecisionForAll}
@@ -225,12 +225,14 @@ export default function ProductTypeManager() {
                 <h2 className="text-2xl font-bold text-gray-900">{selectedPt.name}</h2>
                 <StatusBadge status={selectedPt.status} />
               </div>
-              <p className="text-sm text-gray-500 mt-1">Configure schedules, milestones, attachments, and component lead times.</p>
+              <p className="text-sm text-gray-800 mt-2">
+                Set the Schedules, Milestones, BOM, and Procurement Lead Times for this product type. 
+              </p>            
             </div>
           </div>
         </div>
 
-        <ScheduleCsvSection 
+        <BatchScheduleSection 
           open={showScheduleCsvOptions}
           onToggle={() => setShowScheduleCsvOptions(prev => !prev)}
           onDownloadTemplate={handleDownloadSchedTemplate}
@@ -377,7 +379,7 @@ export default function ProductTypeManager() {
         </div>
       </div>
 
-      <BatchCsvSection
+      <BatchProductTypeSection
         open={showBatchCsvOptions}
         onToggle={() => setShowBatchCsvOptions(open => !open)}
         onDownloadPtTemplate={handleDownloadPtTemplate}

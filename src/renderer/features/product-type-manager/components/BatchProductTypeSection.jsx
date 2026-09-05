@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronUp, Download, Upload, AlertTriangle, Check } from 'lucide-react';
 import StatusBadge from '../../../components/ui/StatusBadge';
 
-export default function BatchCsvSection({ open, onToggle, onDownloadPtTemplate, onImport, onExportFull, onExportPartial }) {
+export default function BatchProductTypeSection({ open, onToggle, onDownloadPtTemplate, onImport, onExportFull, onExportPartial }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm transition-all">
       <div

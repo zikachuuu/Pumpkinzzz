@@ -27,7 +27,7 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
  * @returns {JSX.Element} The rendered component
  */
 
-export default function ImportReview({ importReview, loading, onSetDecisionForAll, onSetDecision, onCancel, onConfirm }) {
+export default function ProductTypeImportReview({ importReview, loading, onSetDecisionForAll, onSetDecision, onCancel, onConfirm }) {
   const newRows = importReview.rows.filter(row => !row.existing);
   const existingRows = importReview.rows.filter(row => row.existing);
 
