@@ -41,7 +41,9 @@ export default function BatchScheduleSection({
                   Export Bill of Materials (BOM) ONLY 
                   <Tag color="pink">Format C</Tag>
                 </p>
-                <p className="text-sm text-gray-800 mb-1">Downloads a blank 2-column spreadsheet (.csv file) template containing just the Product Type name and its attached components.</p>
+                <p className="text-sm text-gray-800 mb-3">
+                  Downloads a spreadsheet (.csv file) containing only the list of components for this product type.
+                </p>
               </>
             } 
             action={
@@ -56,18 +58,21 @@ export default function BatchScheduleSection({
             description={
               <>
                 <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Export BOM + Schedules, Milestones & Procurement 
+                  Export Schedules, Milestones, BOM, and Procurement Lead Time
                   <Tag color="indigo">Format D</Tag>
                 </p>  
-                <p className="text-sm text-gray-800 mb-1">
-                  Downloads a full spreadsheet (.csv file). You will be prompted to select which specific schedules you want to include in the export.
+                <p className="text-sm text-gray-800 mb-3">
+                  Downloads a spreadsheet (.csv file) containing all the details of this product type, including Schedules, Milestones, BOM, and Procurement Lead Time.
+                </p>
+                <p className="text-sm text-gray-800 mb-2">
+                  Choose which schedules (and corresponding Procurement Lead Time) to include in the export. BOM will always be included.
                 </p>
               </>
             } 
             action={
               <button onClick={onOpenExportFullModal} className="flex justify-center items-center w-full lg:w-[380px] xl:w-[420px] space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition shadow-sm">
                 <Download className="w-4 h-4 text-gray-500 shrink-0" />
-                <span className="truncate">Export BOM + Schedules Data (.csv file)</span>
+                <span className="truncate">Export ALL Details (.csv file)</span>
               </button>
             } 
           />
@@ -78,16 +83,44 @@ export default function BatchScheduleSection({
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex-1">
                     <p className="mb-3 font-bold text-gray-900">
-                      Universal Import / Merge Configuration
+                      Upload Spreadsheet (.csv file) / Import Product Type Details
                     </p>
                     <ul className="space-y-3 text-sm text-gray-800">
                       <li className="flex items-start gap-2">
                         <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
-                        <span><span className="font-semibold">Universal:</span> Upload either <Tag color="pink">Format C</Tag> or <Tag color="indigo">Format D</Tag>.</span>
+                        <span><span className="font-semibold">Both Format Supported:</span> You can upload either <Tag color="pink">Format C</Tag> or <Tag color="indigo">Format D</Tag>.</span>
+                        <span><span className="font-semibold"></span> The uploaded file must be in CSV format.</span>
+                      </li>
+                    </ul>
+
+                    <p className="mb-3 mt-4 font-semibold text-gray-900">
+                      When Importing BOM ONLY - <Tag color="pink">Format C</Tag>
+                    </p>
+
+                    <ul className="space-y-3 text-sm text-gray-800 mb-2 ml-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+                        <span><span className="font-semibold">New Component: </span>Will be attached to the product type.</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
-                        <span><span className="font-semibold">Merge Conflict Resolution:</span> Compare existing vs. new components side-by-side. Choose to keep or reject conflicting schedules safely.</span>
+                        <span><span className="font-semibold">Existing Component: </span>Choose to either <span className="font-semibold">Keep Current</span> or <span className="font-semibold">Reject</span>.</span>
+                      </li>                    
+                    </ul>
+                    <span className="text-xs text-gray-500 ml-1">(If the component does not exist in the database, it will be created.)</span>
+
+                    <p className="mb-3 mt-4 font-semibold text-gray-900">
+                      When Importing ALL Details - <Tag color="indigo">Format D</Tag>
+                    </p>
+                    
+                    <ul className="space-y-3 text-sm text-gray-800 mb-2 ml-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+                        <span><span className="font-semibold">New Schedule: </span>Will be attached to the product type.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+                        <span><span className="font-semibold">Existing Schedule: </span>Choose to either <span className="font-semibold">Keep Current</span> or <span className="font-semibold">Overwrite</span>.</span>
                       </li>
                     </ul>
                   </div>
