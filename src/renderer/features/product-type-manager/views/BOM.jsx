@@ -3,6 +3,7 @@ import { Tag, Trash2, Info } from 'lucide-react';
 
 export default function BomTab({
     productTypes, // Needed for the dropdown
+  productTypeId,
     attachedComponents,
     sourceComponents,
     handleAttachExistingComponent,
@@ -14,6 +15,8 @@ export default function BomTab({
     setSelectedGlobalComponentId,
     componentForm,
     setComponentForm,
+    componentCount,
+    setComponentCount,
     allGlobalComponents, 
 }) {
 
@@ -47,15 +50,24 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                     <select
                       value={selectedGlobalComponentId}
                       onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
-                      className="block w-[58%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                      className="block w-[48%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                     >
-                      <option value="">-- Select a component --</option>
+                      <option value="">- Select Component -</option>
                       {availableComponents.map(component => (
                         <option key={component.id} value={component.id}>
                           {component.name}
                         </option>
                       ))}
                     </select>
+
+                    <input
+                      type="number"
+                      min="1"
+                      value={componentCount}
+                      onChange={(e) => setComponentCount(e.target.value)}
+                      aria-label="Component count"
+                      className="block w-[20%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
 
                     {/* PT Filter Dropdown (Smaller) */}
                     <select
@@ -65,7 +77,7 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                           setSelectedGlobalComponentId(''); // Reset selection when filter changes
                       }}
                       title="Filter by Product Type"
-                      className="block w-[42%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
+                      className="block w-[32%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
                     >
                       <option value="">All Product Types</option>
                       {productTypes.map(pt => (
@@ -118,6 +130,16 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                     className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 </div>
+                <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase">Count</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={componentCount}
+                  onChange={(e) => setComponentCount(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                </div>
                 <button
                 type="submit"
                 className="w-full py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-sm font-semibold shadow transition"
@@ -148,6 +170,7 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                 <thead className="bg-gray-50">
                     <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Component Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Count</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Global Remarks</th>
                     <th className="relative px-6 py-3"></th>
                     </tr>
@@ -156,6 +179,19 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                     {attachedComponents.map(c => (
                     <tr key={c.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap font-semibold text-gray-900">{c.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="number"
+                            min="1"
+                            value={c.component_count ?? 1}
+                            onChange={async (e) => {
+                              const count = Math.max(1, parseInt(e.target.value, 10) || 1);
+                              await db.updateComponentCount(c.id, productTypeId, count);
+                              c.component_count = count;
+                            }}
+                            className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
+                          />
+                        </td>
                         <td className="px-6 py-4 text-xs text-gray-500 max-w-xs truncate">{c.remarks || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button

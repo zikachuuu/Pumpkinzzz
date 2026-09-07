@@ -57,8 +57,8 @@ export default function EditProjectModal({ editingProject, setEditingProject, ed
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <div><label className="block text-xs font-bold text-gray-700 uppercase">Procurement *</label><input type="text" required value={editForm.procurement_owner || ''} onChange={(e) => setEditForm({ ...editForm, procurement_owner: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" /></div>
-          <div><label className="block text-xs font-bold text-gray-700 uppercase">Production *</label><input type="text" required value={editForm.production_owner || ''} onChange={(e) => setEditForm({ ...editForm, production_owner: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" /></div>
+          <div><label className="block text-xs font-bold text-gray-700 uppercase">Procurement Owner *</label><input type="text" required value={editForm.procurement_owner || ''} onChange={(e) => setEditForm({ ...editForm, procurement_owner: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" /></div>
+          <div><label className="block text-xs font-bold text-gray-700 uppercase">Production Owner *</label><input type="text" required value={editForm.production_owner || ''} onChange={(e) => setEditForm({ ...editForm, production_owner: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" /></div>
           <div><label className="block text-xs font-bold text-gray-700 uppercase">FAT Owner *</label><input type="text" required value={editForm.fat_owner || ''} onChange={(e) => setEditForm({ ...editForm, fat_owner: e.target.value })} className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" /></div>
         </div>
 

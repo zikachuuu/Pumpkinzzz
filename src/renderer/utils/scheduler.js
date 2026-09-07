@@ -162,6 +162,7 @@ export function calculateComponentDeadlines(milestoneDeadlines, componentSchedul
     return {
       component_id: cs.component_id,
       name: component ? component.name : 'Unknown',
+      component_count: cs.component_count ?? component?.component_count ?? 1,
       anchor_milestone_id: cs.anchor_milestone_id,
       lead_time: cs.lead_time,
       latest_order_date: latestOrderDate,

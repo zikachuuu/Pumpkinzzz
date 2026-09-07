@@ -91,6 +91,7 @@ export default function ProductTypeManager() {
   const [sourceComponents, setSourceComponents] = useState([]);
   const [showAddComponentModal, setShowAddComponentModal] = useState(false);
   const [componentForm, setComponentForm] = useState({ name: '', remarks: '' });
+  const [componentCount, setComponentCount] = useState(1);
   const [selectedGlobalComponentId, setSelectedGlobalComponentId] = useState('');
 
   const triggerAlert = (type, message) => {
@@ -211,8 +212,9 @@ const {
       const existingComponent = existingComponents.find(c => c.name.toLowerCase() === componentName.toLowerCase());
       const componentId = existingComponent ? existingComponent.id : (await db.addComponent(componentName, componentForm.remarks.trim())).lastID;
       
-      await db.attachComponentToProductType(componentId, selectedPt.id);
+      await db.attachComponentToProductType(componentId, selectedPt.id, componentCount);
       setComponentForm({ name: '', remarks: '' });
+      setComponentCount(1);
       setShowAddComponentModal(false);
       triggerAlert('success', existingComponent ? 'Existing component attached!' : 'New component created and attached!');
       loadGlobalComponents();
@@ -225,8 +227,9 @@ const {
   const handleAttachExistingComponent = async () => {
     if (!selectedGlobalComponentId) return;
     try {
-      await db.attachComponentToProductType(parseInt(selectedGlobalComponentId), selectedPt.id);
+      await db.attachComponentToProductType(parseInt(selectedGlobalComponentId), selectedPt.id, componentCount);
       setSelectedGlobalComponentId('');
+      setComponentCount(1);
       triggerAlert('success', 'Component attached successfully!');
       await handleSelectProductType(selectedPt, true);
     } catch (err) {
@@ -298,12 +301,13 @@ const {
 
         {activeTab === 'components' && (
           <BomTab
-            productTypes={productTypes} attachedComponents={attachedComponents} sourceComponents={sourceComponents}
+            productTypes={productTypes} productTypeId={selectedPt.id} attachedComponents={attachedComponents} sourceComponents={sourceComponents}
             handleAttachExistingComponent={handleAttachExistingComponent} handleCreateGlobalComponent={handleCreateGlobalComponent}
             handleDetachComponent={handleDetachComponent} componentProductTypeId={componentProductTypeId}
             setComponentProductTypeId={setComponentProductTypeId} selectedGlobalComponentId={selectedGlobalComponentId}
             setSelectedGlobalComponentId={setSelectedGlobalComponentId} componentForm={componentForm}
             setComponentForm={setComponentForm} allGlobalComponents={allGlobalComponents}
+            componentCount={componentCount} setComponentCount={setComponentCount}
           />
         )}
 

@@ -420,12 +420,12 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase">Procurement *</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase">Procurement Owner *</label>
                 <input type="text" required value={formData.procurement_owner} onChange={(e) => setFormForm({ ...formData, procurement_owner: e.target.value })} placeholder="e.g. Charlie" className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase">Production *</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase">Production Owner *</label>
                 <input type="text" required value={formData.production_owner} onChange={(e) => setFormForm({ ...formData, production_owner: e.target.value })} placeholder="e.g. Dave" className="mt-1 block w-full rounded-lg border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none" />
               </div>
 

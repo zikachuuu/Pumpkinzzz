@@ -6,13 +6,13 @@ const getComponentByName = async (name) => {
   return allComps.find(c => c.name.toLowerCase() === name.toLowerCase());
 };
 
-const ensureAndAttachComponent = async (name, ptId) => {
+const ensureAndAttachComponent = async (name, ptId, count = 1) => {
   let comp = await getComponentByName(name);
   if (!comp) {
     const res = await db.addComponent(name, '');
     comp = { id: res.lastID, name };
   }
-  await db.attachComponentToProductType(comp.id, ptId);
+  await db.attachComponentToProductType(comp.id, ptId, count);
   return comp;
 };
 
@@ -24,7 +24,7 @@ export const commitFormatA = async (analysis, resolutions) => {
     const res = await db.addProductType(pt.name);
     const ptId = res.lastID;
     for (const compName of pt.components) {
-      await ensureAndAttachComponent(compName, ptId);
+      await ensureAndAttachComponent(compName, ptId, pt.componentCounts?.[compName.toLowerCase()] || 1);
     }
     await db.updateProductTypeStatus(ptId);
   }
@@ -51,7 +51,7 @@ export const commitFormatA = async (analysis, resolutions) => {
 
     // Additions (All components from CSV)
     for (const compName of pt.components) {
-      await ensureAndAttachComponent(compName, ptId);
+      await ensureAndAttachComponent(compName, ptId, pt.componentCounts?.[compName.toLowerCase()] || 1);
     }
     
     await db.updateProductTypeStatus(ptId);
@@ -83,7 +83,7 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
 
     // 1. Ensure all imported components are attached
     for (const compName of ptData.components) {
-      await ensureAndAttachComponent(compName, ptId);
+      await ensureAndAttachComponent(compName, ptId, ptData.componentCounts?.[compName.toLowerCase()] || 1);
     }
 
     // 2. Group rows by Schedule Name
@@ -134,6 +134,7 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
       const mAnchorIdx = headers.indexOf('anchor milestone name');
       const mOffsetIdx = headers.indexOf('offset (days)');
       const cNameIdx = headers.indexOf('component name');
+      const cCountIdx = headers.indexOf('component count');
       const cAnchorIdx = headers.indexOf('component anchor milestone');
       const cLeadIdx = headers.indexOf('lead time (days)');
 
@@ -155,6 +156,7 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
 
         // Component Schedules
         const cName = row[cNameIdx]?.trim();
+        const cCount = cCountIdx !== -1 ? (parseInt(row[cCountIdx], 10) || 1) : 1;
         const cAnchor = row[cAnchorIdx]?.trim();
         const cLead = row[cLeadIdx] ? parseInt(row[cLeadIdx]) : 0;
 
@@ -165,6 +167,7 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
             const am = currentMiles.find(m => m.name.toLowerCase() === cAnchor.toLowerCase());
             if (am) {
               await db.saveComponentSchedule(schedId, comp.id, am.id, cLead);
+              await db.updateComponentCount(comp.id, ptId, cCount);
             }
           }
         }

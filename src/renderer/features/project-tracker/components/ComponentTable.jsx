@@ -53,6 +53,7 @@ export default function ComponentTable({
           <thead className="bg-gray-50 font-bold text-gray-500">
             <tr>
               <th className="px-4 py-3 text-left">Component Name</th>
+              <th className="px-4 py-3 text-left">Count</th>
               <th className="px-4 py-3 text-left">Anchor Milestone</th>
               <th className="px-4 py-3 text-left">Lead Time</th>
               <th className="px-4 py-3 text-left">Latest Order Date</th>
@@ -74,7 +75,7 @@ export default function ComponentTable({
               if (computedComps.length === 0) {
                 return (
                   <tr>
-                    <td colSpan="6" className="px-4 py-6 text-center text-gray-400">
+                    <td colSpan="7" className="px-4 py-6 text-center text-gray-400">
                       No component schedule configurations found for this schedule.
                     </td>
                   </tr>
@@ -132,6 +133,7 @@ export default function ComponentTable({
                 return (
                   <tr key={cc.component_id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-semibold text-gray-900">{cc.name}</td>
+                    <td className="px-4 py-3 font-medium">{cc.component_count}</td>
                     <td className="px-4 py-3 text-gray-500">{anchorM ? anchorM.name : 'ROS'}</td>
                     <td className="px-4 py-3 font-medium">{cc.lead_time} days</td>
                     <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(cc.latest_order_date, dateFormat)}</td>

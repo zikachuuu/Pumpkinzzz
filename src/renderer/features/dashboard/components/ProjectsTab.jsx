@@ -170,8 +170,8 @@ export default function ProjectsTab({
                     {[
                       ['Description', selectedProject.description], ['Contract No.', selectedProject.contract_no],
                       ['Sales Ref.', selectedProject.sales_ref], ['Project Manager', selectedProject.pm_owner],
-                      ['Engineer', selectedProject.engineer_owner], ['Procurement', selectedProject.procurement_owner],
-                      ['Production', selectedProject.production_owner], ['FAT Owner', selectedProject.fat_owner]
+                      ['Engineer', selectedProject.engineer_owner], ['Procurement Owner', selectedProject.procurement_owner],
+                      ['Production Owner', selectedProject.production_owner], ['FAT Owner', selectedProject.fat_owner]
                     ].map(([label, value]) => (
                       <div key={label}><span className="block text-[10px] uppercase font-bold text-gray-400">{label}</span><span className="block mt-1 font-semibold text-gray-700 break-words">{value || '-'}</span></div>
                     ))}

@@ -73,11 +73,12 @@ export function stringifyCSV(headers, rows) {
  * @returns {string} CSV content
  */
 export function stringifyProductTypes(productTypes, ptComponentsMap) {
-  const headers = ['Product Type', 'Attached Components'];
+  const headers = ['Product Type', 'Attached Components', 'Component Counts'];
   const rows = productTypes.map(pt => {
     const components = ptComponentsMap[pt.id] || [];
-    const componentsStr = components.join(';');
-    return [pt.name, componentsStr];
+    const componentsStr = components.map(component => typeof component === 'string' ? component : component.name).join(';');
+    const countsStr = components.map(component => typeof component === 'string' ? 1 : (component.component_count ?? 1)).join(';');
+    return [pt.name, componentsStr, countsStr];
   });
   return stringifyCSV(headers, rows);
 }
@@ -99,7 +100,7 @@ export function stringifySchedulesAndMilestones(productType, schedules, mileston
     'Anchor Milestone Name',
     'Offset (Days)',
     'Milestone Remark',
-    'Component Name',
+    'Component Name', 'Component Count',
     'Component Anchor Milestone',
     'Lead Time (Days)'
   ];
@@ -120,6 +121,7 @@ export function stringifySchedulesAndMilestones(productType, schedules, mileston
         m.offset.toString(),
         m.remark || '',
         '', // Component Name
+        '', // Component Count
         '', // Component Anchor Milestone
         ''  // Lead Time
       ]);
@@ -136,6 +138,7 @@ export function stringifySchedulesAndMilestones(productType, schedules, mileston
         '', // Offset
         '', // Remark
         component ? component.name : `Component #${cs.component_id}`,
+        (component?.component_count ?? cs.component_count ?? 1).toString(),
         anchorMilestone ? anchorMilestone.name : '',
         cs.lead_time.toString()
       ]);
@@ -149,10 +152,10 @@ export function stringifySchedulesAndMilestones(productType, schedules, mileston
  * Generates a blank CSV template for Product Types import.
  */
 export function stringifyProductTypesTemplate() {
-  const headers = ['Product Type', 'Attached Components'];
+  const headers = ['Product Type', 'Attached Components', 'Component Counts'];
   const sampleRows = [
-    ['Water Chiller', 'Compressor;Condenser;Evaporator;Expansion Valve'],
-    ['Air Chiller', 'Compressor;Fan Motor;Condenser Coil']
+    ['Water Chiller', 'Compressor;Condenser;Evaporator;Expansion Valve', '1;1;1;1'],
+    ['Air Chiller', 'Compressor;Fan Motor;Condenser Coil', '1;1;1']
   ];
   return stringifyCSV(headers, sampleRows);
 }
@@ -166,17 +169,17 @@ export function stringifySchedulesTemplate() {
     'Anchor Milestone Name',
     'Offset (Days)',
     'Milestone Remark',
-    'Component Name',
+    'Component Name', 'Component Count',
     'Component Anchor Milestone',
     'Lead Time (Days)'
   ];
   const sampleRows = [
-    ['Normal', 'Contract Signed', '', '', 'Project starts', '', '', ''],
-    ['Normal', 'ROS', '', '', 'Required On Site delivery', '', '', ''],
-    ['Normal', 'Production Start', 'Contract Signed', '15', 'Production begins', '', '', ''],
-    ['Normal', 'Production End', 'Production Start', '30', 'Production complete', '', '', ''],
-    ['Normal', '', '', '', '', 'Compressor', 'Production Start', '10'],
-    ['Normal', '', '', '', '', 'Condenser', 'Production End', '5']
+    ['Normal', 'Contract Signed', '', '', 'Project starts', '', '', '', ''],
+    ['Normal', 'ROS', '', '', 'Required On Site delivery', '', '', '', ''],
+    ['Normal', 'Production Start', 'Contract Signed', '15', 'Production begins', '', '', '', ''],
+    ['Normal', 'Production End', 'Production Start', '30', 'Production complete', '', '', '', ''],
+    ['Normal', '', '', '', '', 'Compressor', '1', 'Production Start', '10'],
+    ['Normal', '', '', '', '', 'Condenser', '1', 'Production End', '5']
   ];
   return stringifyCSV(headers, sampleRows);
 }
@@ -203,7 +206,7 @@ export function stringifyFullProductTypeBackup(productRows) {
   const headers = [
     'Product Type', 'Attached Components', 'Schedule Name', 'Milestone Name', 
     'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 
-    'Component Name', 'Component Anchor Milestone', 'Lead Time (Days)', 
+    'Component Name', 'Component Count', 'Component Anchor Milestone', 'Lead Time (Days)',
     'Product Type Status'
   ];
   return stringifyCSV(headers, productRows);
@@ -214,9 +217,10 @@ export function stringifyFullProductTypeBackup(productRows) {
  * Strict 2-column format for single Product Type
  */
 export function stringifyFormatA(productType, components) {
-  const headers = ['Product Type', 'Attached Components'];
+  const headers = ['Product Type', 'Attached Components', 'Component Counts'];
   const compString = components.map(c => c.name).join(';');
-  return stringifyCSV(headers, [[productType.name, compString]]);
+  const countsString = components.map(c => c.component_count ?? 1).join(';');
+  return stringifyCSV(headers, [[productType.name, compString, countsString]]);
 }
 
 /**
@@ -227,7 +231,7 @@ export function stringifyFormatB(productType, components, schedules, milestonesM
   const headers = [
     'Product Type', 'Attached Components', 'Schedule Name', 'Milestone Name',
     'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 
-    'Component Name', 'Component Anchor Milestone', 'Lead Time (Days)'
+    'Component Name', 'Component Count', 'Component Anchor Milestone', 'Lead Time (Days)'
   ];
   
   const rows = [];
@@ -240,7 +244,7 @@ export function stringifyFormatB(productType, components, schedules, milestonesM
 
     // Edge case: Schedule has no milestones/components yet
     if (milestones.length === 0 && compScheds.length === 0) {
-      rows.push([...baseColumns, s.name, '', '', '', '', '', '', '']);
+      rows.push([...baseColumns, s.name, '', '', '', '', '', '', '', '']);
       continue;
     }
 
@@ -249,7 +253,7 @@ export function stringifyFormatB(productType, components, schedules, milestonesM
       const anchor = milestones.find(a => a.id === m.anchor_id);
       rows.push([
         ...baseColumns, s.name, m.name, anchor ? anchor.name : '',
-        m.offset.toString(), m.remark || '', '', '', ''
+        m.offset.toString(), m.remark || '', '', '', '', ''
       ]);
     }
 
@@ -258,7 +262,8 @@ export function stringifyFormatB(productType, components, schedules, milestonesM
       const anchorMilestone = milestones.find(m => m.id === cs.anchor_milestone_id);
       rows.push([
         ...baseColumns, s.name, '', '', '', '',
-        cs.component_name || `Component #${cs.component_id}`, // We'll pass the name down
+        cs.component_name || `Component #${cs.component_id}`,
+        (cs.component_count ?? 1).toString(),
         anchorMilestone ? anchorMilestone.name : '',
         cs.lead_time.toString()
       ]);

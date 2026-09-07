@@ -83,7 +83,7 @@ export const exportBatchFormatA = async (triggerAlert, selectedIds) => {
     
     for (const pt of productTypes) {
       const comps = await db.getAttachedComponents(pt.id);
-      ptComponentsMap[pt.id] = comps.map(c => c.name);
+      ptComponentsMap[pt.id] = comps;
     }
     
     const csvContent = stringifyProductTypes(productTypes, ptComponentsMap);
@@ -122,7 +122,7 @@ export const exportBatchFormatB = async (triggerAlert, selectedIds) => {
 
       // Handle product types with no schedules
       if (schedules.length === 0) {
-        productRows.push([pt.name, compString, '', '', '', '', '', '', '', '', pt.status]);
+        productRows.push([pt.name, compString, '', '', '', '', '', '', '', '', '', pt.status]);
         continue;
       }
 
@@ -132,7 +132,7 @@ export const exportBatchFormatB = async (triggerAlert, selectedIds) => {
 
         // Handle schedules with no config yet
         if (milestones.length === 0 && compScheds.length === 0) {
-          productRows.push([pt.name, compString, s.name, '', '', '', '', '', '', '', pt.status]);
+          productRows.push([pt.name, compString, s.name, '', '', '', '', '', '', '', '', pt.status]);
           continue;
         }
 
@@ -141,7 +141,7 @@ export const exportBatchFormatB = async (triggerAlert, selectedIds) => {
           const anchor = milestones.find(a => a.id === m.anchor_id);
           productRows.push([
             pt.name, compString, s.name, m.name, anchor ? anchor.name : '',
-            m.offset.toString(), m.remark || '', '', '', '', pt.status
+            m.offset.toString(), m.remark || '', '', '', '', '', pt.status
           ]);
         }
 
@@ -152,6 +152,7 @@ export const exportBatchFormatB = async (triggerAlert, selectedIds) => {
           productRows.push([
             pt.name, compString, s.name, '', '', '', '',
             comp ? comp.name : `Component #${cs.component_id}`,
+            (components.find(component => component.id === cs.component_id)?.component_count ?? cs.component_count ?? 1).toString(),
             anchorMilestone ? anchorMilestone.name : '',
             cs.lead_time.toString(), pt.status
           ]);

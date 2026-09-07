@@ -262,8 +262,8 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                         {[
                           ['Description', p.description], ['Contract No.', p.contract_no],
                           ['Sales Ref.', p.sales_ref], ['Project Manager', p.pm_owner],
-                          ['Engineer', p.engineer_owner], ['Procurement', p.procurement_owner],
-                          ['Production', p.production_owner], ['FAT Owner', p.fat_owner]
+                          ['Engineer', p.engineer_owner], ['Procurement Owner', p.procurement_owner],
+                          ['Production Owner', p.production_owner], ['FAT Owner', p.fat_owner]
                         ].map(([label, value]) => (
                           <div key={label}>
                             <span className="block text-[10px] uppercase font-bold text-gray-400">{label}</span>

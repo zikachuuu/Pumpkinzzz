@@ -192,7 +192,7 @@ export async function getComponents() {
 
 export async function getAttachedComponents(productTypeId) {
   const sql = `
-    SELECT c.* FROM components c
+    SELECT c.*, ptc.count AS component_count FROM components c
     JOIN product_type_components ptc ON c.id = ptc.component_id
     WHERE ptc.product_type_id = ?
     ORDER BY c.name ASC
@@ -204,12 +204,20 @@ export async function addComponent(name, remarks = '') {
   return api.dbRun(`INSERT INTO components (name, remarks) VALUES (?, ?)`, [name, remarks]);
 }
 
-export async function attachComponentToProductType(componentId, productTypeId) {
+export async function attachComponentToProductType(componentId, productTypeId, count = 1) {
   await api.dbRun(
-    `INSERT OR IGNORE INTO product_type_components (component_id, product_type_id) VALUES (?, ?)`,
-    [componentId, productTypeId]
+    `INSERT INTO product_type_components (component_id, product_type_id, count) VALUES (?, ?, ?)
+     ON CONFLICT(component_id, product_type_id) DO UPDATE SET count = excluded.count`,
+    [componentId, productTypeId, Math.max(1, parseInt(count, 10) || 1)]
   );
   await updateProductTypeStatus(productTypeId);
+}
+
+export async function updateComponentCount(componentId, productTypeId, count) {
+  await api.dbRun(
+    `UPDATE product_type_components SET count = ? WHERE component_id = ? AND product_type_id = ?`,
+    [Math.max(1, parseInt(count, 10) || 1), componentId, productTypeId]
+  );
 }
 
 export async function detachComponentFromProductType(componentId, productTypeId) {
@@ -231,7 +239,14 @@ export async function detachComponentFromProductType(componentId, productTypeId)
 // ==========================================
 
 export async function getComponentSchedules(scheduleId) {
-  return api.dbQuery(`SELECT * FROM component_schedules WHERE schedule_id = ?`, [scheduleId]);
+  return api.dbQuery(`
+    SELECT cs.*, COALESCE(ptc.count, 1) AS component_count
+    FROM component_schedules cs
+    JOIN schedules s ON s.id = cs.schedule_id
+    LEFT JOIN product_type_components ptc
+      ON ptc.component_id = cs.component_id AND ptc.product_type_id = s.product_type_id
+    WHERE cs.schedule_id = ?
+  `, [scheduleId]);
 }
 
 export async function saveComponentSchedule(scheduleId, componentId, anchorMilestoneId, leadTime) {

@@ -88,10 +88,16 @@ function initDb() {
         db.run(`CREATE TABLE IF NOT EXISTS product_type_components (
           component_id INTEGER NOT NULL,
           product_type_id INTEGER NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY(component_id, product_type_id),
           FOREIGN KEY(component_id) REFERENCES components(id) ON DELETE CASCADE,
           FOREIGN KEY(product_type_id) REFERENCES product_types(id) ON DELETE CASCADE
         );`);
+        db.run(`ALTER TABLE product_type_components ADD COLUMN count INTEGER NOT NULL DEFAULT 1`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.error('Error adding component count column:', err.message);
+          }
+        });
 
         // 6. component_schedules table
         db.run(`CREATE TABLE IF NOT EXISTS component_schedules (

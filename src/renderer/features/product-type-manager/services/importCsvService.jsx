@@ -7,7 +7,7 @@ const api = window.electronAPI;
 const EXPECTED_HEADERS = [
   'Product Type', 'Attached Components', 'Schedule Name', 'Milestone Name',
   'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 
-  'Component Name', 'Component Anchor Milestone', 'Lead Time (Days)',
+  'Component Name', 'Component Count', 'Component Anchor Milestone', 'Lead Time (Days)',
   'Product Type Status' // <-- Added this!
 ];
 
@@ -34,6 +34,7 @@ export const selectAndParseImportFile = async () => {
   const ptCol = headers.includes('product type') ? 'product type' : (headers.includes('product type name') ? 'product type name' : null);
 
   const hasAttached = headers.includes('attached components');
+  const hasCounts = headers.includes('component counts');
   const hasCompName = headers.includes('component name');
   const hasSched = headers.includes('schedule name');
 
@@ -56,6 +57,8 @@ export const selectAndParseImportFile = async () => {
   const nameIdx = headers.indexOf(ptCol);
   const attachedIdx = headers.indexOf('attached components');
   const compNameIdx = headers.indexOf('component name');
+  const countsIdx = headers.indexOf('component counts');
+  const componentCountIdx = headers.indexOf('component count');
 
   for (let i = 1; i < csvData.length; i++) {
     const row = csvData[i];
@@ -63,7 +66,7 @@ export const selectAndParseImportFile = async () => {
     if (!ptName) continue;
 
     if (!groupedData[ptName]) {
-      groupedData[ptName] = { name: ptName, components: [], rows: [] };
+      groupedData[ptName] = { name: ptName, components: [], componentCounts: {}, rows: [] };
     }
 
     groupedData[ptName].rows.push(row);
@@ -71,14 +74,17 @@ export const selectAndParseImportFile = async () => {
     // Extract components seamlessly from either column format
     if (attachedIdx !== -1 && row[attachedIdx]) {
       const comps = row[attachedIdx].split(';').map(c => c.trim()).filter(Boolean);
-      comps.forEach(c => {
+      const counts = countsIdx !== -1 && row[countsIdx] ? row[countsIdx].split(';').map(value => parseInt(value, 10) || 1) : [];
+      comps.forEach((c, index) => {
         if (!groupedData[ptName].components.includes(c)) groupedData[ptName].components.push(c);
+        groupedData[ptName].componentCounts[c.toLowerCase()] = counts[index] || 1;
       });
     }
     
     if (compNameIdx !== -1 && row[compNameIdx]) {
       const c = row[compNameIdx].trim();
       if (c && !groupedData[ptName].components.includes(c)) groupedData[ptName].components.push(c);
+      groupedData[ptName].componentCounts[c.toLowerCase()] = componentCountIdx !== -1 ? (parseInt(row[componentCountIdx], 10) || 1) : 1;
     }
   }
 
