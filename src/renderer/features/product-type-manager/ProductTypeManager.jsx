@@ -520,18 +520,23 @@ const {
               </div>
               <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex items-center justify-between text-xs font-bold text-gray-600">
                 
-                <div className="flex space-x-3">
+              <div className="flex space-x-3">
                   <button onClick={() => { setPtRenameId(pt.id); setPtRenameInput(pt.name); }} className="hover:text-indigo-600 transition">Rename</button>
+                  
+                  {/* BULLETPROOF TOOLTIP & DISABLED STATE */}
                   <button 
-                    onClick={() => handleDeleteProductType(pt.id, pt.name)} 
-                    disabled={pt.in_use_count > 0}
+                    onClick={(e) => {
+                      if (pt.in_use_count > 0) return; // Guard prevents action
+                      handleDeleteProductType(pt.id, pt.name);
+                    }} 
+                    aria-disabled={pt.in_use_count > 0}
+                    title={pt.in_use_count > 0 ? 'Currently in use product type cannot be deleted.' : 'Delete Product Type'}
                     className={`transition ${pt.in_use_count > 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:text-red-600'}`}
-                    title={pt.in_use_count > 0 ? 'Cannot delete while in use by projects' : 'Delete Product Type'}
                   >
                     Delete
                   </button>
-                </div>                
-                
+              </div>  
+
                 <button type="button" onClick={(event) => { event.currentTarget.blur(); handleSelectProductType(pt); }} className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-800 transition">
                   <span>Manage Config</span><ChevronRight className="w-4 h-4" />
                 </button>

@@ -161,23 +161,31 @@ export default function SchedulesTab({
                             >
                                 {getScheduleValidity(s).isValid ? 'COMPLETE' : 'INCOMPLETE'}
                             </span>
-                            
-                            {/* --- DELETE BUTTON DISABLED IF IN USE --- */}
-                            <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteSchedule(s.id, s.name);
-                                }}
-                                disabled={s.in_use_count > 0}
-                                className={`p-1 rounded transition-colors ${
-                                  s.in_use_count > 0 
-                                    ? 'text-gray-300 cursor-not-allowed' 
-                                    : 'text-gray-400 hover:text-red-600 hover:bg-white'
-                                }`}
-                                title={s.in_use_count > 0 ? 'Cannot delete schedule while in use by active projects' : 'Delete Schedule'}
+
+                            {/* --- DELETE BUTTON WRAPPED FOR TOOLTIP --- */}
+                            <span 
+                              title={s.in_use_count > 0 ? 'Currently in use schedule cannot be deleted.' : 'Delete Schedule'}
+                              className={s.in_use_count > 0 ? 'cursor-not-allowed inline-flex' : 'inline-flex'}
                             >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                                {/* BULLETPROOF TOOLTIP & DISABLED STATE */}
+                                <button
+                                    onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (s.in_use_count > 0) return; // Guard prevents action
+                                    handleDeleteSchedule(s.id, s.name);
+                                    }}
+                                    aria-disabled={s.in_use_count > 0}
+                                    title={s.in_use_count > 0 ? 'Currently in use schedule cannot be deleted.' : 'Delete Schedule'}
+                                    className={`p-1 rounded transition-colors ${
+                                    s.in_use_count > 0 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-400 hover:text-red-600 hover:bg-white'
+                                    }`}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>    
+
+                            </span>
                           </div>
                         </div>
                     ))}
