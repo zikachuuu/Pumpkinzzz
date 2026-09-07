@@ -25,7 +25,8 @@ export async function getProductTypes() {
   const sql = `
     SELECT pt.*, 
       (SELECT COUNT(*) FROM schedules WHERE product_type_id = pt.id) as schedule_count,
-      (SELECT COUNT(*) FROM product_type_components WHERE product_type_id = pt.id) as component_count
+      (SELECT COUNT(*) FROM product_type_components WHERE product_type_id = pt.id) as component_count,
+      (SELECT COUNT(*) FROM projects WHERE product_type_id = pt.id) as in_use_count
     FROM product_types pt
     ORDER BY pt.name ASC
   `;
@@ -120,7 +121,13 @@ export async function updateProductTypeStatus(productTypeId) {
 // ==========================================
 
 export async function getSchedules(productTypeId) {
-  const sql = `SELECT * FROM schedules WHERE product_type_id = ? ORDER BY name ASC`;
+  const sql = `
+    SELECT s.*,
+      (SELECT COUNT(*) FROM projects WHERE schedule_id = s.id) as in_use_count
+    FROM schedules s 
+    WHERE product_type_id = ? 
+    ORDER BY name ASC
+  `;
   return api.dbQuery(sql, [productTypeId]);
 }
 
@@ -300,6 +307,17 @@ export async function updateProjectActualReceivedDates(tagNo, receivedDatesJSON)
   return api.dbRun(`UPDATE projects SET actual_received_dates = ? WHERE tag_no = ?`, [receivedDatesJSON, tagNo]);
 }
 
+export async function getProjectsUsing(type, id) {
+  // 'type' will be either 'product_type' or 'schedule'
+  const column = type === 'product_type' ? 'product_type_id' : 'schedule_id';
+  const sql = `
+    SELECT tag_no, description, customer 
+    FROM projects 
+    WHERE ${column} = ? 
+    ORDER BY tag_no ASC
+  `;
+  return api.dbQuery(sql, [id]);
+}
 
 // ==========================================
 // 6. GANTT CHARTS
@@ -358,3 +376,5 @@ export const saveGanttChart = async (slotId, projectTagNo, rows) => {
   // Execute as a single transaction using your existing helper
   return await dbTransaction(statements);
 };
+
+

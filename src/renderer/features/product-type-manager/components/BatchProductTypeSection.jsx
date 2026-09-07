@@ -1,9 +1,13 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Download, Upload, AlertTriangle, Check } from 'lucide-react';
-import StatusBadge from '../../../components/ui/StatusBadge';
-import Tag from '../../../components/ui/Tag';
+import { ChevronDown, ChevronUp, Download, Upload, Check } from 'lucide-react';
 
-export default function BatchProductTypeSection({ open, onToggle, onDownloadPtTemplate, onImport, onExportFull, onExportPartial }) {
+export default function BatchProductTypeSection({ 
+  open, 
+  onToggle, 
+  onOpenExportBomModal, 
+  onOpenExportFullModal, 
+  onImport 
+}) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm transition-all">
       <div
@@ -39,93 +43,71 @@ export default function BatchProductTypeSection({ open, onToggle, onDownloadPtTe
       {open && (
         <div id="batch-csv-options" className="mt-6 space-y-5 lg:ml-8" onClick={event => event.stopPropagation()}>
           
+          {/* Subsection 1: Export BOM Only */}
           <ActionRow 
             description={
               <>
                 <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Download a blank spreadsheet template (.csv file) in <Tag color="blue">Format A</Tag> containing only 2 columns 
+                  Export Product Types + Bill of Materials (BOM) Only
                 </p>
-                <ul className="list-disc list-inside text-sm text-gray-800 mb-2 ml-2 space-y-1">
-                  <li>Product Type</li>
-                  <li>Attached Components (BOM; separated by semicolons ";")</li>
-                </ul>
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  * Product types imported from this spreadsheet (.csv file) will have status <StatusBadge status="invalid" />
+                <p className="text-sm text-gray-800 mb-2">
+                  Select which product types and their associated BOM to export.
+                </p>
+                <p className="text-xs text-gray-500">
+                  * If you select nothing, you can download a blank template.
                 </p>
               </>
             } 
             action={
-              <button onClick={onDownloadPtTemplate} className="flex justify-center items-center w-full lg:w-[380px] xl:w-[420px] space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition shadow-sm">
+              <button onClick={onOpenExportBomModal} className="flex justify-center items-center w-full lg:w-[380px] xl:w-[420px] space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition shadow-sm">
                 <Download className="w-4 h-4 text-gray-500 shrink-0" />
-                <span className="truncate">Download Spreadsheet Template (.csv file)</span>
+                <span className="truncate">Export BOM Only (.csv file)</span>
               </button>
             } 
           />
 
+          {/* Subsection 2: Export ALL Data */}
           <ActionRow 
             description={
               <>
                 <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Export all existing product types and ALL associated data as a spreadsheet (.csv file) in <Tag color="purple">Format B</Tag>, including:
+                  Export Product Types + ALL Data
                 </p>
-                <ul className="list-disc list-inside text-sm text-gray-800 mb-2 ml-2 space-y-1">
-                  <li>Schedules and Milestones</li>
-                  <li>Attached Components (BOM)</li>
+                <p className="text-sm text-gray-800 mb-2">
+                  Select which product types and ALL associated data to export, including
+                </p>
+                <ul className="list-disc list-inside text-sm text-gray-800 mb-1 ml-2 space-y-1">
+                  <li>Bill of Materials (BOM)</li>
+                  <li>Schedules and associated Milestones</li>
                   <li>Procurement Lead Times</li>
                 </ul>
-                <p className="text-xs text-gray-500 flex items-center flex-wrap gap-1 leading-relaxed">
-                  * Product types imported from this spreadsheet (.csv file) will retain their status (<StatusBadge status="valid"/>, <StatusBadge status="sub-valid"/>, or <StatusBadge status="invalid" />)
-                </p>
               </>
             } 
             action={
-              <button onClick={onExportFull} className="flex justify-center items-center w-full lg:w-[380px] xl:w-[420px] space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition shadow-sm">
+              <button onClick={onOpenExportFullModal} className="flex justify-center items-center w-full lg:w-[380px] xl:w-[420px] space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition shadow-sm">
                 <Download className="w-4 h-4 text-gray-500 shrink-0" />
-                <span className="truncate">Export Product Types & ALL Data (.csv file)</span>
+                <span className="truncate">Export ALL Data (.csv file)</span>
               </button>
             } 
           />
 
-          <ActionRow 
-            description={
-              <>
-                <p className="mb-2 font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-                  Export all existing product types and associated BOM ONLY as a spreadsheet (.csv file) in <Tag color="blue">Format A</Tag>
-                </p>
-                <p className="text-sm text-gray-800 mb-2">Matches the 2-column format of the blank spreadsheet template (.csv file).</p>
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  * Product types imported from this spreadsheet (.csv file) will have status <StatusBadge status="invalid" />
-                </p>
-              </>
-            } 
-            action={
-              <button onClick={onExportPartial} className="flex justify-center items-center w-full lg:w-[380px] xl:w-[420px] space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-semibold bg-white transition shadow-sm">
-                <Download className="w-4 h-4 text-gray-500 shrink-0" />
-                <span className="truncate">Export Product Types & BOM ONLY (.csv file)</span>
-              </button>
-            } 
-          />
-
+          {/* Subsection 3: Import */}
           <ActionRow 
             description={
               <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 shadow-sm">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex-1">
                     <p className="mb-3 font-bold text-gray-900 flex flex-wrap items-center gap-2">
-                      Upload Spreadsheet (.csv file) / Import Product Types
+                      Import Product Types
                     </p>
                     <ul className="space-y-3 text-sm text-gray-800 mb-2">
-                      <li className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
-                        <span><span className="font-semibold">Both Format Supported:</span> You can upload either <Tag color="blue">Format A</Tag> or <Tag color="purple">Format B</Tag>.</span>
-                      </li>
                       <li className="flex items-start gap-2">
                         <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
                         <span><span className="font-semibold">New Product Types:</span> Will be created automatically.</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Check className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
-                        <span><span className="font-semibold">Existing Product Types:</span> You can choose to either <strong>Keep Current</strong> or <strong>Overwrite</strong>.</span>
+                        <span><span className="font-semibold">Existing Product Types:</span> You will be prompted to either <strong>Keep Current</strong> or <strong>Overwrite</strong>.</span>
                       </li>
                     </ul>
                   </div>
@@ -135,16 +117,8 @@ export default function BatchProductTypeSection({ open, onToggle, onDownloadPtTe
                     <span className="truncate">Upload Spreadsheet (.csv file)</span>
                   </button>
                 </div>
-
-                <div className="mt-3 bg-red-50 border border-red-200 rounded-md p-3.5 flex items-start gap-2.5 text-red-900 text-xs shadow-sm">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-                  <p className="leading-relaxed">
-                    <span className="font-semibold">Warning:</span> If you upload <Tag color="blue">Format A</Tag> and choose to <strong>Overwrite</strong> an existing product type, its existing Schedules, Milestones, and Procurement Lead Times will be <strong>permanently deleted</strong>. Uploading <Tag color="purple">Format B</Tag> will safely overwrite all matching data.
-                  </p>
-                </div>
               </div>
             } 
-            // We omit the right-hand action prop entirely here so it takes up the full width
           />
 
         </div>
@@ -157,7 +131,6 @@ export default function BatchProductTypeSection({ open, onToggle, onDownloadPtTe
 
 function ActionRow({ description, action }) {
   return (
-    // Changed to a responsive flexbox: Stacks on mobile, forms a row on large screens
     <div className="flex flex-col lg:flex-row lg:items-start xl:items-center justify-between gap-4 lg:gap-8 border-t border-gray-100 pt-5">
       <div className="text-sm text-gray-800 flex-1">
         {description}
@@ -170,4 +143,3 @@ function ActionRow({ description, action }) {
     </div>
   );
 }
-

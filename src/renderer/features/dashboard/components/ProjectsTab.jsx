@@ -104,11 +104,11 @@ export default function ProjectsTab({
                 <ChecklistFilter label="Product Type" className="w-[120px]" options={(productTypes || []).map(pt => ({ value: String(pt.id), label: pt.name }))} selected={ptFilter} onChange={setPtFilter} isOpen={activeDropdown === 'product'} onToggle={(isOpen) => setActiveDropdown(isOpen ? 'product' : null)} />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold leading-none text-gray-600">Milestone</span>
+                <span className="text-[10px] font-semibold leading-none text-gray-600">Milestone Status</span>
                 <ChecklistFilter label="Milestone" className="w-[155px]" options={(milestoneStatuses || []).map(s => ({ value: s, label: s }))} selected={milestoneStatusFilter} onChange={setMilestoneStatusFilter} isOpen={activeDropdown === 'milestones'} onToggle={(isOpen) => setActiveDropdown(isOpen ? 'milestones' : null)} />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold leading-none text-gray-600">Procurement</span>
+                <span className="text-[10px] font-semibold leading-none text-gray-600">Procurement Status</span>
                 <ChecklistFilter label="Procurement" className="w-[155px]" options={(componentStatuses || []).map(s => ({ value: s, label: s }))} selected={componentStatusFilter} onChange={setComponentStatusFilter} isOpen={activeDropdown === 'components'} onToggle={(isOpen) => setActiveDropdown(isOpen ? 'components' : null)} />
               </div>
             </div>

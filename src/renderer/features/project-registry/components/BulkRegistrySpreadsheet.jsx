@@ -210,11 +210,21 @@ export default function BulkRegistrySpreadsheet({
         </div>
 
         <div className="flex items-center space-x-3">
-          <button onClick={handleDeleteSelected} disabled={selectedCount === 0} className="flex items-center space-x-1.5 px-4 py-2 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50">
+          <button 
+            onClick={handleDeleteSelected} 
+            disabled={selectedCount === 0} 
+            className="flex items-center space-x-1.5 px-4 py-2 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50"
+          >
             <Trash2 className="w-4 h-4" />
             <span>Delete Selected ({selectedCount})</span>
           </button>
-          <button onClick={handleBulkConfirm} disabled={loading || hasAnyErrors} className="flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed">
+          
+          <button 
+            onClick={handleBulkConfirm} 
+            // STEP 1: Add selectedCount === 0 to the disabled conditions
+            disabled={loading || hasAnyErrors || selectedCount === 0} 
+            className="flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
             <Check className="w-4 h-4" />
             <span>{loading ? 'Uploading...' : `Confirm Upload (${selectedCount} Rows)`}</span>
           </button>

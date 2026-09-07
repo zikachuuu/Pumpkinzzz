@@ -1,24 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Calendar, Layers, Edit } from 'lucide-react';
-import MilestoneTimeline from '../components/MilestoneTimeline'; // Adjust path if needed
+import MilestoneTimeline from '../components/MilestoneTimeline'; 
 import { stringifyProductTypesTemplate } from '../../../utils/csv';
-
-/**
- * This component renders the Schedules and Milestones tab for the Product Type Manager. 
- * It allows users to view, add, edit, and delete schedules and milestones, as well as visualize milestone relationships in a tree or timeline format.
- * 
- * Props:
- * - schedules: Array of schedule objects.
- * - selectedSchedule: The currently selected schedule object.
- * - milestones: Array of milestone objects associated with the selected schedule.
- * - scheduleValidity: Object mapping schedule IDs to their validity status and reason.
- * - handleSelectSchedule: Function to handle selecting a schedule.
- * - handleDeleteSchedule: Function to handle deleting a schedule.
- * - handleDeleteMilestone: Function to handle deleting a milestone.
- * - setShowAddScheduleModal: Function to toggle the visibility of the Add Schedule modal.
- * - handleOpenMilestoneModal: Function to open the Milestone modal for adding or editing milestones.
- * 
- */
+import UsageCapsule from '../../../components/ui/UsageCapsule.jsx'; // <--- ADDED IMPORT
 
 export default function SchedulesTab({
   schedules,
@@ -30,23 +14,19 @@ export default function SchedulesTab({
   handleDeleteMilestone,
   setShowAddScheduleModal,
   handleOpenMilestoneModal,
+  openUsageModal, // <--- ADDED PROP
 }) {
 
-    // Move the sub-view state here since only this tab cares about it!
     const [scheduleSubView, setScheduleSubView] = useState('tree'); 
 
-    // Paste your buildMilestoneTree and renderTreeNodes helper functions here
     const buildMilestoneTree = (milestoneList) => {
-        // Find top roots (milestones with no anchor_id)
         const roots = milestoneList.filter(m => !m.anchor_id);
-        
         const findChildren = (node) => {
-        return {
-            ...node,
-            children: milestoneList.filter(m => m.anchor_id === node.id).map(findChildren)
+          return {
+              ...node,
+              children: milestoneList.filter(m => m.anchor_id === node.id).map(findChildren)
+          };
         };
-        };
-
         return roots.map(findChildren);
     };
 
@@ -56,7 +36,6 @@ export default function SchedulesTab({
         
         return (
         <div key={node.id} className="ml-6 border-l border-indigo-200 pl-4 my-2 relative">
-            {/* Node Connecting Dot */}
             <div className="absolute w-2 h-2 rounded-full bg-indigo-400 -left-1.5 top-5"></div>
             
             <div className={`p-3 rounded-lg border flex items-center justify-between ${
@@ -131,11 +110,9 @@ export default function SchedulesTab({
         const relation = m.offset < 0 ? 'before' : 'after';
         return `${absOffset} days ${relation} ${anchorName}`;
     };
-    
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Schedules List */}
                 <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm flex flex-col h-fit">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-gray-900 text-md">Schedules</h3>
@@ -166,8 +143,14 @@ export default function SchedulesTab({
                         >
                           <span className="min-w-0 truncate">{s.name}</span>
                           
-                          {/* 👇 Wrap the badge and button in a flex container 👇 */}
                           <div className="flex items-center space-x-3">
+                            
+                            {/* --- USAGE CAPSULE ADDED HERE --- */}
+                            <UsageCapsule 
+                              count={s.in_use_count} 
+                              onClick={() => openUsageModal('schedule', s.id, s.name)} 
+                            />
+
                             <span
                                 title={getScheduleValidity(s).reason}
                                 className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -178,26 +161,30 @@ export default function SchedulesTab({
                             >
                                 {getScheduleValidity(s).isValid ? 'COMPLETE' : 'INCOMPLETE'}
                             </span>
+                            
+                            {/* --- DELETE BUTTON DISABLED IF IN USE --- */}
                             <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDeleteSchedule(s.id, s.name);
                                 }}
-                                className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-white"
-                                title="Delete Schedule"
+                                disabled={s.in_use_count > 0}
+                                className={`p-1 rounded transition-colors ${
+                                  s.in_use_count > 0 
+                                    ? 'text-gray-300 cursor-not-allowed' 
+                                    : 'text-gray-400 hover:text-red-600 hover:bg-white'
+                                }`}
+                                title={s.in_use_count > 0 ? 'Cannot delete schedule while in use by active projects' : 'Delete Schedule'}
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
-                          {/* 👆 End of wrapper 👆 */}
-
                         </div>
                     ))}
                     </div>
                 )}
                 </div>
 
-                {/* Right Column: Milestones Manager & Visual Diagram */}
                 <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
                 {!selectedSchedule ? (
                     <div className="p-16 text-center text-gray-400">
@@ -206,7 +193,6 @@ export default function SchedulesTab({
                     </div>
                 ) : (
                     <div className="space-y-8">
-                    {/* Milestones Header */}
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-gray-100 pb-4">
                         <div className="flex-1 md:pr-8">
                             <h3 className="font-bold text-gray-900 text-lg">
@@ -248,7 +234,6 @@ export default function SchedulesTab({
                         ))}
                     </div>
 
-                    {/* VISUAL TREE DIAGRAM */}
                     {scheduleSubView === 'tree' && <div>
                         <h4 className="font-semibold text-gray-800 text-sm mb-4 flex items-center space-x-2">
                         <Layers className="w-4 h-4 text-indigo-500" />
@@ -263,7 +248,6 @@ export default function SchedulesTab({
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 overflow-x-auto min-h-[200px]">
                             {buildMilestoneTree(milestones).map(rootNode => (
                             <div key={rootNode.id} className="mb-6 last:mb-0">
-                                {/* Root node directly */}
                                 <div className="p-3 bg-indigo-900 text-white rounded-lg border border-indigo-950 flex items-center justify-between shadow-sm max-w-sm">
                                 <div>
                                     <span className="font-bold text-sm">{rootNode.name}</span>
@@ -274,7 +258,6 @@ export default function SchedulesTab({
                                 </span>
                                 </div>
                                 
-                                {/* Children recursively */}
                                 {rootNode.children && rootNode.children.map(child => renderTreeNodes(child, milestones))}
                             </div>
                             ))}
@@ -284,7 +267,6 @@ export default function SchedulesTab({
 
                     {scheduleSubView === 'timeline' && <MilestoneTimeline milestones={milestones} />}
 
-                    {/* FLAT LIST TABLE */}
                     {scheduleSubView === 'records' && <div>
                         <h4 className="font-semibold text-gray-800 text-sm mb-3">Milestone Master Records</h4>
                         <div className="overflow-x-auto border border-gray-200 rounded-lg">

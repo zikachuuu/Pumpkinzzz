@@ -7,7 +7,6 @@ import * as db from '../../utils/db';
 // Component Imports
 import BatchProductTypeSection from './components/BatchProductTypeSection';
 import BatchScheduleSection from './components/BatchScheduleSection';
-import ProductTypeImportReview from './views/ProductTypeImportReview';
 import Alert from '../../components/ui/Alert';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -15,6 +14,10 @@ import ModalValidityStatusGuide from './components/ValidityStatusGuide';
 import ExportScheduleModal from './components/ExportScheduleModal'; // Your new Modal from Step 1
 import { selectAndParseImportFile } from './services/importCsvService';
 import ImportWizardModal from './components/ImportWizardModal';
+import CsvFormatErrorModal from '../../components/ui/CsvFormatErrorModal.jsx';
+import ExportSelectionModal from './components/ExportSelectionModal';
+import UsageCapsule from '../../components/ui/UsageCapsule.jsx';
+import UsageDetailsModal from '../../components/ui/UsageDetailsModal.jsx';
 
 // View Imports
 import ScheduleMilestoneTab from './views/Schedule-Milestone';
@@ -26,7 +29,7 @@ import { useProductType } from './hooks/useProductType';
 import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 import { useProductTypeCsv } from './hooks/useProductTypeCsv';
 
-import { exportFormatA, exportFormatB } from './services/exportCsvService';
+import { exportFormatA, exportFormatB, exportBatchFormatA, exportBatchFormatB } from './services/exportCsvService';
 
 export default function ProductTypeManager() {
   const [loading, setLoading] = useState(true);
@@ -45,6 +48,13 @@ export default function ProductTypeManager() {
   const [showScheduleCsvOptions, setShowScheduleCsvOptions] = useState(false);
   const [showExportScheduleModal, setShowExportScheduleModal] = useState(false); 
   const [wizardPayload, setWizardPayload] = useState(null);
+  const [showFormatErrorModal, setShowFormatErrorModal] = useState(false);
+  const [uploadedHeaders, setUploadedHeaders] = useState([]);
+  const [expectedHeaders, setExpectedHeaders] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportMode, setExportMode] = useState('bom');
+  const [usageModal, setUsageModal] = useState({ isOpen: false, type: '', id: null, name: '' });
+  const openUsageModal = (type, id, name) => setUsageModal({ isOpen: true, type, id, name });
 
   const handleUniversalImportClick = async () => {
     try {
@@ -53,7 +63,14 @@ export default function ProductTypeManager() {
         setWizardPayload(payload);
       }
     } catch (err) {
-      triggerAlert('error', err.message);
+      // Check if it's our structured format error
+      if (err.isFormatError) {
+        setUploadedHeaders(err.uploadedHeaders);
+        setExpectedHeaders(err.expectedHeaders);
+        setShowFormatErrorModal(true);
+      } else {
+        triggerAlert('error', err.message);
+      }
     }
   };
 
@@ -106,11 +123,10 @@ export default function ProductTypeManager() {
     handleSaveLeadTimesForSchedule
   } = useProductTypeConfig(triggerAlert);    
 
-  const {
-    importReview, setImportReview, setImportDecisionForAll, setImportDecision,
-    handleDownloadPtTemplate, handleDownloadSchedTemplate, handleExportProductTypes,
-    handleExportSchedules, handleExportMilestonesOnly, handleExportFullBackup,
-    handleImportProductTypes, handleImportSchedules, confirmProductTypeImport
+const {
+    handleDownloadPtTemplate, handleDownloadSchedTemplate, 
+    handleExportSchedules, handleExportMilestonesOnly, 
+    handleImportSchedules
   } = useProductTypeCsv({
     triggerAlert, setLoading, loadProductTypes, loadGlobalComponents,
     selectedPt, scheduleValidity, handleSelectProductType
@@ -218,17 +234,6 @@ export default function ProductTypeManager() {
     }
   };
 
-  // --- VIEWS ---
-  if (importReview) return (
-    <ProductTypeImportReview
-      importReview={importReview}
-      loading={loading}
-      onSetDecisionForAll={setImportDecisionForAll}
-      onSetDecision={setImportDecision}
-      onCancel={() => setImportReview(null)}
-      onConfirm={confirmProductTypeImport}
-    />
-  );
 
   if (selectedPt) {
     return (
@@ -287,6 +292,7 @@ export default function ProductTypeManager() {
             scheduleValidity={scheduleValidity} handleSelectSchedule={handleSelectSchedule}
             handleDeleteSchedule={handleDeleteSchedule} handleDeleteMilestone={handleDeleteMilestone}
             setShowAddScheduleModal={setShowAddScheduleModal} handleOpenMilestoneModal={handleOpenMilestoneModal}
+            openUsageModal={openUsageModal}
           />
         )}
 
@@ -376,10 +382,26 @@ export default function ProductTypeManager() {
           existingProductTypes={productTypes}
           onClose={() => setWizardPayload(null)}
           triggerAlert={triggerAlert}
+          openUsageModal={openUsageModal}
           onSuccess={() => {          
             loadProductTypes();
             loadGlobalComponents();
           }}
+        />
+
+        <CsvFormatErrorModal 
+          isOpen={showFormatErrorModal} 
+          onClose={() => setShowFormatErrorModal(false)} 
+          uploadedHeaders={uploadedHeaders} 
+          expectedHeaders={expectedHeaders} 
+        />
+
+        <UsageDetailsModal 
+          isOpen={usageModal.isOpen} 
+          onClose={() => setUsageModal(prev => ({ ...prev, isOpen: false }))} 
+          type={usageModal.type} 
+          id={usageModal.id} 
+          name={usageModal.name} 
         />
       </div>
     );
@@ -418,10 +440,18 @@ export default function ProductTypeManager() {
       <BatchProductTypeSection
         open={showBatchCsvOptions}
         onToggle={() => setShowBatchCsvOptions(open => !open)}
-        onDownloadPtTemplate={handleDownloadPtTemplate}
-        onImport={handleImportProductTypes}
-        onExportFull={handleExportFullBackup}
-        onExportPartial={handleExportProductTypes}
+        
+        // Pass the handlers to open the modal and set the mode
+        onOpenExportBomModal={() => {
+          setExportMode('bom');
+          setShowExportModal(true);
+        }}
+        onOpenExportFullModal={() => {
+          setExportMode('full');
+          setShowExportModal(true);
+        }}
+        
+        onImport={handleUniversalImportClick} 
       />
 
       <Alert alert={alert} />
@@ -474,10 +504,14 @@ export default function ProductTypeManager() {
                   ) : (
                     <h3 className="font-bold text-gray-950 text-lg tracking-tight truncate max-w-[160px]">{pt.name}</h3>
                   )}
+                  
                   <span className="inline-flex items-center gap-1">
+                    <UsageCapsule count={pt.in_use_count} onClick={() => openUsageModal('product_type', pt.id, pt.name)} />
+
                     <StatusBadge status={pt.status} />
                     <button type="button" onClick={() => setShowValidityModal(true)} className="p-1 text-gray-400 hover:text-indigo-600" title={`Why is this product type ${pt.status}?`}><Info className="w-3.5 h-3.5" /></button>
                   </span>
+
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-600 bg-gray-50 rounded-lg p-3">
                   <div><span className="text-[10px] uppercase text-gray-400 block mb-0.5">Schedules</span><span className="text-sm font-bold text-gray-800">{pt.schedule_count}</span></div>
@@ -485,10 +519,19 @@ export default function ProductTypeManager() {
                 </div>
               </div>
               <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex items-center justify-between text-xs font-bold text-gray-600">
+                
                 <div className="flex space-x-3">
                   <button onClick={() => { setPtRenameId(pt.id); setPtRenameInput(pt.name); }} className="hover:text-indigo-600 transition">Rename</button>
-                  <button onClick={() => handleDeleteProductType(pt.id, pt.name)} className="hover:text-red-600 transition">Delete</button>
-                </div>
+                  <button 
+                    onClick={() => handleDeleteProductType(pt.id, pt.name)} 
+                    disabled={pt.in_use_count > 0}
+                    className={`transition ${pt.in_use_count > 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:text-red-600'}`}
+                    title={pt.in_use_count > 0 ? 'Cannot delete while in use by projects' : 'Delete Product Type'}
+                  >
+                    Delete
+                  </button>
+                </div>                
+                
                 <button type="button" onClick={(event) => { event.currentTarget.blur(); handleSelectProductType(pt); }} className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-800 transition">
                   <span>Manage Config</span><ChevronRight className="w-4 h-4" />
                 </button>
@@ -528,12 +571,45 @@ export default function ProductTypeManager() {
         importPayload={wizardPayload}
         existingProductTypes={productTypes}
         onClose={() => setWizardPayload(null)}
-        triggerAlert={triggerAlert} // 👈 ADD THIS
-        onSuccess={() => {          // 👈 ADD THIS
+        triggerAlert={triggerAlert} 
+        openUsageModal={openUsageModal}
+        onSuccess={() => {          
           loadProductTypes();
           loadGlobalComponents();
         }}
       />
+
+      <CsvFormatErrorModal 
+        isOpen={showFormatErrorModal} 
+        onClose={() => setShowFormatErrorModal(false)} 
+        uploadedHeaders={uploadedHeaders} 
+        expectedHeaders={expectedHeaders} 
+      />
+
+      {/* Add the new Export Selection Modal here */}
+      <ExportSelectionModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        productTypes={productTypes}
+        exportMode={exportMode}
+        onExport={(selectedIds) => {
+          if (exportMode === 'bom') {
+            exportBatchFormatA(triggerAlert, selectedIds);
+          } else {
+            exportBatchFormatB(triggerAlert, selectedIds);
+          }
+        }}
+        onDownloadTemplate={handleDownloadPtTemplate}
+      />
+
+      <UsageDetailsModal 
+        isOpen={usageModal.isOpen} 
+        onClose={() => setUsageModal(prev => ({ ...prev, isOpen: false }))} 
+        type={usageModal.type} 
+        id={usageModal.id} 
+        name={usageModal.name} 
+      />
+
     </div>
   );
 }

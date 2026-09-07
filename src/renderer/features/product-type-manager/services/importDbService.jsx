@@ -17,7 +17,7 @@ const ensureAndAttachComponent = async (name, ptId) => {
 };
 
 
-// --- FORMAT A (BOM ONLY) ---
+// --- FORMAT A / BOM ONLY ---
 export const commitFormatA = async (analysis, resolutions) => {
   // 1. Process Brand New Product Types
   for (const pt of analysis.newPts) {
@@ -30,33 +30,58 @@ export const commitFormatA = async (analysis, resolutions) => {
   }
 
   // 2. Process Conflicts based on Resolutions
+  // Note: activeConflicts is already filtered to only include the ones the user chose to 'overwrite'
   for (const pt of analysis.conflictPts) {
     const ptId = pt.existingPt.id;
-    const res = resolutions[pt.name] || { removeExisting: [], rejectNew: [] };
+    const res = resolutions[pt.name];
+    if (!res) continue; 
     
-    // Removals
-    for (const compName of res.removeExisting) {
+    // Removals (Components)
+    for (const compName of res.removeExistingComps || []) {
       const comp = await getComponentByName(compName);
       if (comp) await db.detachComponentFromProductType(comp.id, ptId);
     }
 
-    // Additions (Only components in 'onlyImported' that were NOT rejected)
-    for (const compName of pt.onlyImported) {
-      if (!res.rejectNew.includes(compName)) {
-        await ensureAndAttachComponent(compName, ptId);
-      }
+    // Removals (Schedules - for BOM overwrites that wipe schedules)
+    const existingSchedules = await db.getSchedules(ptId);
+    for (const schedName of res.removeExistingScheds || []) {
+      const sMatch = existingSchedules.find(s => s.name.toLowerCase() === schedName.toLowerCase());
+      if (sMatch) await db.deleteSchedule(sMatch.id, ptId);
     }
+
+    // Additions (All components from CSV)
+    for (const compName of pt.components) {
+      await ensureAndAttachComponent(compName, ptId);
+    }
+    
     await db.updateProductTypeStatus(ptId);
   }
 };
 
 
-// --- FORMAT B (FULL DATA) ---
+// --- FORMAT B / FULL DATA ---
 export const commitFormatB = async (analysis, resolutions, headers) => {
   
   // Shared logic for both New and Conflict PTs
-  const processPtRows = async (ptId, ptData, ptResolutions = {}) => {
-    // 1. Ensure all components in the CSV for this PT are attached
+  const processPtRows = async (ptId, ptData, ptResolutions = null) => {
+    
+    // If it's an overwrite, handle removals first
+    if (ptResolutions) {
+      // Detach removed components
+      for (const compName of ptResolutions.removeExistingComps || []) {
+        const comp = await getComponentByName(compName);
+        if (comp) await db.detachComponentFromProductType(comp.id, ptId);
+      }
+      
+      // Delete schedules that are completely missing from the CSV
+      const existingSchedules = await db.getSchedules(ptId);
+      for (const schedName of ptResolutions.removeExistingScheds || []) {
+        const sMatch = existingSchedules.find(s => s.name.toLowerCase() === schedName.toLowerCase());
+        if (sMatch) await db.deleteSchedule(sMatch.id, ptId);
+      }
+    }
+
+    // 1. Ensure all imported components are attached
     for (const compName of ptData.components) {
       await ensureAndAttachComponent(compName, ptId);
     }
@@ -71,22 +96,20 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
       rowsBySchedule[sName].push(row);
     }
 
-    const existingSchedules = await db.getSchedules(ptId);
+    const currentSchedules = await db.getSchedules(ptId);
 
-    // 3. Process each schedule
+    // 3. Process each imported schedule
     for (const [sName, rows] of Object.entries(rowsBySchedule)) {
-      const existingMatch = existingSchedules.find(s => s.name.toLowerCase() === sName.toLowerCase());
       
-      if (existingMatch) {
-        const decision = ptResolutions[existingMatch.name] || 'keep';
-        if (decision === 'keep') continue; // Skip importing this schedule entirely
-        if (decision === 'overwrite') {
-          // Delete old schedule to start completely fresh
-          await db.deleteSchedule(existingMatch.id, ptId);
+      // If this is an overwrite, delete the old matching schedule before rebuilding it from CSV
+      if (ptResolutions) {
+        const existingMatch = currentSchedules.find(s => s.name.toLowerCase() === sName.toLowerCase());
+        if (existingMatch) {
+           await db.deleteSchedule(existingMatch.id, ptId);
         }
       }
 
-      // Create new schedule (automatically creates 'Contract Signed' and 'ROS')
+      // Create new schedule (automatically spawns 'Contract Signed' and 'ROS')
       const schedId = await db.addSchedule(ptId, sName);
       
       // Pass 1: Parse and create all Milestones
@@ -154,13 +177,16 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
   for (const pt of analysis.newPts) {
     const res = await db.addProductType(pt.name);
     const ptId = res.lastID;
-    await processPtRows(ptId, pt, {});
+    await processPtRows(ptId, pt, null);
   }
 
   // 2. Process Conflicts based on Resolutions
+  // Note: activeConflicts is already filtered to only include the ones the user chose to 'overwrite'
   for (const pt of analysis.conflictPts) {
     const ptId = pt.existingPt.id;
-    const resolutionsForPt = resolutions[pt.name] || {};
-    await processPtRows(ptId, pt, resolutionsForPt);
+    const resolutionsForPt = resolutions[pt.name];
+    if (resolutionsForPt) {
+      await processPtRows(ptId, pt, resolutionsForPt);
+    }
   }
 };

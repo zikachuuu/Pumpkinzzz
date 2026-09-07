@@ -66,14 +66,14 @@ export function stringifyCSV(headers, rows) {
 
 /**
  * Converts Product Types list to CSV content.
- * Headers: Product Type Name, Attached Components
+ * Headers: Product Type, Attached Components
  * 
  * @param {Array} productTypes 
  * @param {Object} ptComponentsMap - Map of pt.id to Array of component names
  * @returns {string} CSV content
  */
 export function stringifyProductTypes(productTypes, ptComponentsMap) {
-  const headers = ['Product Type Name', 'Attached Components'];
+  const headers = ['Product Type', 'Attached Components'];
   const rows = productTypes.map(pt => {
     const components = ptComponentsMap[pt.id] || [];
     const componentsStr = components.join(';');
@@ -149,7 +149,7 @@ export function stringifySchedulesAndMilestones(productType, schedules, mileston
  * Generates a blank CSV template for Product Types import.
  */
 export function stringifyProductTypesTemplate() {
-  const headers = ['Product Type Name', 'Attached Components'];
+  const headers = ['Product Type', 'Attached Components'];
   const sampleRows = [
     ['Water Chiller', 'Compressor;Condenser;Evaporator;Expansion Valve'],
     ['Air Chiller', 'Compressor;Fan Motor;Condenser Coil']
@@ -182,7 +182,7 @@ export function stringifySchedulesTemplate() {
 }
 
 export function stringifyMilestonesOnly(productType, schedules, milestonesMap) {
-  const headers = ['Product Type Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark'];
+  const headers = ['Product Type', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark'];
   const rows = [];
   schedules.forEach(schedule => {
     const milestones = milestonesMap[schedule.id] || [];
@@ -199,7 +199,13 @@ export function stringifyMilestonesOnly(productType, schedules, milestonesMap) {
 }
 
 export function stringifyFullProductTypeBackup(productRows) {
-  const headers = ['Product Type Name', 'Component Name', 'Schedule Name', 'Milestone Name', 'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 'Component Anchor Milestone', 'Lead Time (Days)', 'Product Type Status'];
+  // Added 'Attached Components' and standardized 'Product Type'
+  const headers = [
+    'Product Type', 'Attached Components', 'Schedule Name', 'Milestone Name', 
+    'Anchor Milestone Name', 'Offset (Days)', 'Milestone Remark', 
+    'Component Name', 'Component Anchor Milestone', 'Lead Time (Days)', 
+    'Product Type Status'
+  ];
   return stringifyCSV(headers, productRows);
 }
 
