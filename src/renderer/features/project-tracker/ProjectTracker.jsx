@@ -124,7 +124,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="block w-[185px] rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition-colors focus:border-indigo-500 focus:outline-none cursor-pointer"
+              className="block w-[185px] rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition-colors focus:border-indigo-500 focus:outline-none cursor-pointer font-semibold"
             >
             <option value="tag_no-asc">Tag No (A → Z)</option>
             <option value="tag_no-desc">Tag No (Z → A)</option>

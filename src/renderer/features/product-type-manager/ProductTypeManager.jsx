@@ -105,6 +105,7 @@ export default function ProductTypeManager() {
   // --- HOOKS ---
   const {
     productTypes, setProductTypes, searchTerm, setSearchTerm, statusFilter, setStatusFilter,
+    inUseFilter, setInUseFilter,
     sortBy, setSortBy, loading: isOverviewLoading, filteredPtList, loadProductTypes,
     handleAddProductType, handleRenameProductType, handleDeleteProductType
   } = useProductType(triggerAlert);
@@ -434,27 +435,77 @@ export default function ProductTypeManager() {
 
       <Alert alert={alert} />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-        <div className="md:col-span-2 relative">
+      {/* Search, Filters, and Sort */}
+      <div className="flex flex-col xl:flex-row xl:items-center gap-4 xl:gap-8 bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+        
+        {/* Search */}
+        <div className="relative min-w-0 flex-1">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
-          <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Product Type names..." className="pl-10 pr-4 py-2.5 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search Product Type names..."
+            className="pl-10 pr-4 py-2.5 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+          />
         </div>
-        <div>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="py-2.5 px-3 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none bg-white">
-            <option value="all">All Validity Statuses</option>
-            <option value="valid">Valid (Complete)</option>
-            <option value="sub-valid">Sub-Valid (Partial)</option>
-            <option value="invalid">Invalid (Action Required)</option>
-          </select>
+        
+{/* Filters & Sort */}
+        <div className="flex flex-wrap items-center justify-end gap-3 xl:flex-nowrap">
+          
+          <span className="shrink-0 text-[11px] font-semibold text-gray-600">Filter by</span>
+          
+          {/* Changed items-center to items-end to perfectly match ProjectTracker */}
+          <div className="flex items-end gap-2">
+            
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold leading-none text-gray-600">Validity Status</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-[160px] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 transition-colors focus:border-indigo-500 focus:outline-none cursor-pointer font-semibold"
+              >
+                <option value="all">All</option>
+                <option value="valid">Valid</option>
+                <option value="sub-valid">Sub-Valid</option>
+                <option value="invalid">Invalid</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold leading-none text-gray-600">Usage</span>
+              <select
+                value={inUseFilter}
+                onChange={(e) => setInUseFilter(e.target.value)}
+                className="block w-[110px] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 transition-colors focus:border-indigo-500 focus:outline-none cursor-pointer font-semibold"
+              >
+                <option value="all">All</option>
+                <option value="in-use">In Use</option>
+                <option value="not-in-use">Not In Use</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div className="ml-3 flex items-center gap-2">
+            <span className="shrink-0 text-[11px] font-semibold text-gray-600">Sort by</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="block w-[185px] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 transition-colors focus:border-indigo-500 focus:outline-none cursor-pointer font-semibold"
+            >
+              <option value="name-asc">Name (A → Z)</option>
+              <option value="name-desc">Name (Z → A)</option>
+              <option value="status-asc">Status (Invalid → Valid)</option>
+              <option value="status-desc">Status (Valid → Invalid)</option>
+              <option value="schedules-desc">Schedules (Most)</option>
+              <option value="schedules-asc">Schedules (Least)</option>
+              <option value="components-desc">Components (Most)</option>
+              <option value="components-asc">Components (Least)</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="py-2.5 px-3 block w-full rounded-lg border border-gray-300 text-sm focus:border-indigo-500 focus:outline-none bg-white">
-            <option value="name">Sort by Name</option>
-            <option value="status">Sort by Status</option>
-            <option value="schedules">Sort by Schedule Count</option>
-            <option value="components">Sort by Components Count</option>
-          </select>
-        </div>
+
       </div>
 
       {isOverviewLoading ? (
