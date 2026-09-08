@@ -211,6 +211,7 @@ export async function attachComponentToProductType(componentId, productTypeId, c
     [componentId, productTypeId, Math.max(1, parseInt(count, 10) || 1)]
   );
   await updateProductTypeStatus(productTypeId);
+  return componentId;
 }
 
 export async function updateComponentCount(componentId, productTypeId, count) {
@@ -262,7 +263,15 @@ export async function saveComponentSchedule(scheduleId, componentId, anchorMiles
 
 export async function getProjects() {
   const sql = `
-    SELECT p.*, pt.name as product_type_name, s.name as schedule_name 
+    SELECT p.*, pt.name as product_type_name, s.name as schedule_name,
+      CASE 
+        -- Lock if the Product Type has NO components attached
+        WHEN (SELECT COUNT(*) FROM product_type_components WHERE product_type_id = p.product_type_id) = 0 THEN 1
+        -- Lock if the Schedule is missing lead times for ANY attached component
+        WHEN (SELECT COUNT(*) FROM component_schedules WHERE schedule_id = p.schedule_id) < (SELECT COUNT(*) FROM product_type_components WHERE product_type_id = p.product_type_id) THEN 1
+        -- Otherwise, it is unlocked and safe to use
+        ELSE 0
+      END as is_locked
     FROM projects p
     JOIN product_types pt ON p.product_type_id = pt.id
     JOIN schedules s ON p.schedule_id = s.id

@@ -46,11 +46,14 @@ export function useProductTypeConfig(triggerAlert) {
   const [leadTimeSettings, setLeadTimeSettings] = useState({});
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
+  const [highlightComponentId, setHighlightComponentId] = useState(null);
+
   // 1. Select a Product Type and load its specific data
   const handleSelectProductType = async (pt, preserveActiveTab = false) => {
     setSelectedPt(pt);
     if (!preserveActiveTab) setActiveTab('schedules');
     setIsDetailLoading(true);
+    setHighlightComponentId(null);
     
     try {
       const scheds = await db.getSchedules(pt.id);
@@ -102,6 +105,7 @@ export function useProductTypeConfig(triggerAlert) {
     setSchedules([]);
     setMilestones([]);
     setAttachedComponents([]);
+    setHighlightComponentId(null);
   };
 
   // --- SCHEDULES CRUD ---
@@ -162,7 +166,13 @@ export function useProductTypeConfig(triggerAlert) {
 
   // --- COMPONENTS CRUD ---
   const handleDetachComponent = async (compId, compName) => {
-    if (!confirm(`Are you sure you want to detach component "${compName}"?`)) return false;
+    const isLast = attachedComponents.length === 1;
+    const warningMsg = isLast 
+      ? `SEVERE WARNING: You are detaching the LAST component ("${compName}").\n\nDoing so will instantly render this Product Type and ALL associated Projects INVALID and LOCKED. Are you absolutely sure?`
+      : `Are you sure you want to detach component "${compName}"?`;
+
+    if (!confirm(warningMsg)) return false;
+
     await db.detachComponentFromProductType(compId, selectedPt.id);
     triggerAlert('success', 'Component detached successfully.');
     await handleSelectProductType(selectedPt, true);
@@ -284,6 +294,8 @@ export function useProductTypeConfig(triggerAlert) {
     refreshScheduleValidity,
     getScheduleValidity,
     handleLeadTimeChange,
-    handleSaveLeadTimesForSchedule
+    handleSaveLeadTimesForSchedule,
+    highlightComponentId,       
+    setHighlightComponentId
   };
 }

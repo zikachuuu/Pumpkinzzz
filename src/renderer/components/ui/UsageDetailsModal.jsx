@@ -34,7 +34,9 @@ export default function UsageDetailsModal({ isOpen, onClose, type, id, name }) {
         <div className="shrink-0">
           <p className="text-sm text-gray-600 leading-relaxed">
             The following registered projects are actively using this {typeLabel.toLowerCase()}. 
-            You <strong className="text-red-600">cannot delete or overwrite</strong> it via CSV import until these projects are modified or removed from the registry.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            You <strong className="text-red-600">cannot delete or overwrite</strong> it via spreadsheet import until these projects are modified or removed from the registry.
           </p>
         </div>
         

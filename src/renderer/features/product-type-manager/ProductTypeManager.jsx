@@ -116,7 +116,8 @@ export default function ProductTypeManager() {
     isDetailLoading, handleSelectProductType, handleSelectSchedule, clearSelection,
     handleAddSchedule, handleDeleteSchedule, handleSaveMilestone, handleDeleteMilestone,
     handleDetachComponent, handleSaveLeadTimes, getScheduleValidity, handleLeadTimeChange,
-    handleSaveLeadTimesForSchedule
+    handleSaveLeadTimesForSchedule,
+    highlightComponentId, setHighlightComponentId
   } = useProductTypeConfig(triggerAlert);    
 
   const {
@@ -212,6 +213,10 @@ export default function ProductTypeManager() {
       triggerAlert('success', existingComponent ? 'Existing component attached!' : 'New component created and attached!');
       loadGlobalComponents();
       await handleSelectProductType(selectedPt, true);
+
+      setHighlightComponentId(componentId);
+      setActiveTab('leadtimes');
+
     } catch (err) {
       triggerAlert('error', `Failed to create component: ${err.message}`);
     }
@@ -220,11 +225,15 @@ export default function ProductTypeManager() {
   const handleAttachExistingComponent = async () => {
     if (!selectedGlobalComponentId) return;
     try {
-      await db.attachComponentToProductType(parseInt(selectedGlobalComponentId), selectedPt.id, componentCount);
+      const compIdToAttach = await db.attachComponentToProductType(parseInt(selectedGlobalComponentId), selectedPt.id, componentCount);
       setSelectedGlobalComponentId('');
       setComponentCount(1);
       triggerAlert('success', 'Component attached successfully!');
       await handleSelectProductType(selectedPt, true);
+
+      setHighlightComponentId(compIdToAttach);
+      setActiveTab('leadtimes');
+
     } catch (err) {
       triggerAlert('error', `Failed to attach component: ${err.message}`);
     }
@@ -295,6 +304,7 @@ export default function ProductTypeManager() {
             leadTimeSettings={leadTimeSettings} handleLeadTimeChange={handleLeadTimeChange}
             handleSaveLeadTimes={handleSaveLeadTimes} scheduleValidity={scheduleValidity}
             getScheduleValidity={getScheduleValidity} handleSaveLeadTimesForSchedule={handleSaveLeadTimesForSchedule}
+            highlightComponentId={highlightComponentId} setHighlightComponentId={setHighlightComponentId}
           />
         )}
 

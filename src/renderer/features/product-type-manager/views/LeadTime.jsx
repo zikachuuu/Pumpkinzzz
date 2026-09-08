@@ -10,7 +10,9 @@ export default function LeadTimesTab({
     handleSaveLeadTimes,
     scheduleValidity,
     getScheduleValidity,
-    handleSaveLeadTimesForSchedule
+    handleSaveLeadTimesForSchedule,
+    highlightComponentId,  
+    setHighlightComponentId
 }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm space-y-6">
@@ -92,38 +94,59 @@ export default function LeadTimesTab({
                     {attachedComponents.map(c => {
                         const key = `${c.id}-${s.id}`;
                         const setting = leadTimeSettings[key] || { anchor_id: '', lead_time: 0 };
+                                                const isHighlighted = String(highlightComponentId) === String(c.id);
 
                         return (
-                        <div key={c.id} className="p-4 bg-white rounded-lg border border-gray-200 flex flex-col justify-between shadow-sm space-y-3">
-                            <span className="font-bold text-sm text-gray-800">{c.name}</span>
-                            <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase">Anchor Milestone</label>
-                                <select
-                                value={setting.anchor_id}
-                                onChange={(e) => handleLeadTimeChange(c.id, s.id, 'anchor_id', e.target.value)}
-                                className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
-                                >
-                                <option value="">ROS</option>
-                                {activeMilestones.map(m => (
-                                    <option key={m.id} value={m.id}>
-                                    {m.name}
-                                    </option>
-                                ))}
-                                </select>
+                            <div 
+                              key={c.id} 
+                                                            className={`p-4 rounded-lg border flex flex-col justify-between shadow-sm space-y-3 relative transition-all duration-500 ${
+                                                                isHighlighted
+                                  ? 'bg-amber-50/40 border-amber-400 ring-2 ring-amber-200' 
+                                  : 'bg-white border-gray-200'
+                              }`}
+                            >
+                                {/* 2. Add the bouncing pointer */}
+                                                                {isHighlighted && (
+                                    <div className="absolute -top-3 -right-2 flex items-center justify-center animate-bounce bg-amber-400 text-amber-950 text-[10px] font-bold px-3 py-0.5 rounded-full shadow-md z-10 border border-amber-500">
+                                        ↓ Action Required
+                                    </div>
+                                )}
+
+                                <span className="font-bold text-sm text-gray-800">{c.name}</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase">Anchor Milestone</label>
+                                        <select
+                                            value={setting.anchor_id}
+                                            onChange={(e) => {
+                                                handleLeadTimeChange(c.id, s.id, 'anchor_id', e.target.value);
+                                                if (isHighlighted) setHighlightComponentId(null);
+                                            }}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                        >
+                                            <option value="">ROS</option>
+                                            {activeMilestones.map(m => (
+                                                <option key={m.id} value={m.id}>
+                                                {m.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase">Lead Time (Days)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={setting.lead_time}
+                                            onChange={(e) => {
+                                                handleLeadTimeChange(c.id, s.id, 'lead_time', e.target.value);
+                                                if (isHighlighted) setHighlightComponentId(null);
+                                            }}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase">Lead Time (Days)</label>
-                                <input
-                                type="number"
-                                min="0"
-                                value={setting.lead_time}
-                                onChange={(e) => handleLeadTimeChange(c.id, s.id, 'lead_time', e.target.value)}
-                                className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
-                                />
-                            </div>
-                            </div>
-                        </div>
                         );
                     })}
                     </div>

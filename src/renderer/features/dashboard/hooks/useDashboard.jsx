@@ -81,7 +81,12 @@ export function useDashboard(triggerAlert) {
       
       setSavedChartsSummary(ganttSummary);
 
-      if (projectData.length > 0) setSelectedTag(projectData[0].tag_no);
+      if (projectData.length > 0) {
+        // Prioritize selecting a valid project on first load
+        const firstUnlocked = projectData.find(p => p.is_locked === 0) || projectData[0];
+        setSelectedTag(firstUnlocked.tag_no);
+      }    
+    
     } catch (err) {
       if (triggerAlert) triggerAlert('error', `Failed to load dashboard: ${err.message}`);
     } finally {

@@ -89,9 +89,19 @@ export default function ProjectsTab({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
             >
               <option value="">Choose a project...</option>
-              {filteredProjects.map(p => (
-                <option key={p.tag_no} value={p.tag_no}>{formatProjectName(p)}</option>
-              ))}
+              {filteredProjects.map(p => {
+                const isLocked = p.is_locked === 1;
+                return (
+                  <option 
+                    key={p.tag_no} 
+                    value={p.tag_no} 
+                    disabled={isLocked}
+                    className={isLocked ? 'text-gray-400 font-normal' : 'font-semibold text-gray-900'}
+                  >
+                    {formatProjectName(p)} {isLocked ? '- LOCKED (Missing Configuration)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -124,6 +134,17 @@ export default function ProjectsTab({
 
       {selectedProject ? (
         <>
+          {/* --- LOCK WARNING BANNER --- */}
+          {selectedProject.is_locked === 1 && (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-start gap-3 text-red-800 shadow-sm animate-in fade-in slide-in-from-top-2">
+              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-red-900">Project Locked: Incomplete Schedule Configuration</h4>
+                <p className="text-xs text-red-700 mt-1">This project is currently locked because its associated Schedule is missing component lead times. Please update the configuration in the Product Type Manager to unlock this project and its Gantt chart.</p>
+              </div>
+            </div>
+          )}
+
           {/* --- THE PROJECT CARD --- */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all hover:border-gray-300">
             <div 
@@ -205,14 +226,19 @@ export default function ProjectsTab({
                   ))}
                 </div>
                 
-                <button onClick={() => setShowActuals(!showActuals)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border ${showActuals ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                <button 
+                onClick={() => setShowActuals(!showActuals)} 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border ${showActuals ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
                   {showActuals ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   {showActuals ? 'Hide Actuals' : 'Compare Actuals'}
                 </button>
 
                 <div className="w-px h-6 bg-gray-300 mx-1"></div>
 
-                <button onClick={addGanttRow} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-black transition text-white text-xs font-bold shadow-sm">
+                <button 
+                onClick={addGanttRow} 
+                disabled={selectedProject.is_locked === 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-black transition text-white text-xs font-bold shadow-sm">
                   <Plus className="w-4 h-4" /> Add Row
                 </button>
 
@@ -225,7 +251,10 @@ export default function ProjectsTab({
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setSaveModalOpen(true)} disabled={ganttRows.length === 0} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition text-white text-xs font-bold shadow-sm w-full">
+                  <button 
+                  onClick={() => setSaveModalOpen(true)}
+                  disabled={ganttRows.length === 0 || selectedProject.is_locked === 1}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition text-white text-xs font-bold shadow-sm w-full">
                     <Save className="w-4 h-4" /> Save Chart
                   </button>
                 </div>              
@@ -267,6 +296,7 @@ export default function ProjectsTab({
             {[1, 2, 3, 4, 5].map(slot => {
               const summary = savedChartsSummary[slot]; 
               const proj = summary ? projects.find(p => p.tag_no === summary.tag_no) : null;
+              const isLocked = proj && proj.is_locked === 1; // <-- Check lock status
               
               return (
                 <div key={slot} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg transition-colors ${summary ? 'border-gray-200 bg-white shadow-sm' : 'border-gray-200 border-dashed bg-gray-50/50'}`}>
@@ -276,15 +306,21 @@ export default function ProjectsTab({
                       {summary && <span className="text-[10px] font-bold text-gray-500">{summary.row_count} Rows</span>}
                     </div>
                     {summary ? (
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                      <p className={`text-sm truncate ${isLocked ? 'font-semibold text-red-600' : 'font-semibold text-gray-900'}`}>
                         {proj ? formatProjectName(proj) : `Unknown Project (${summary.tag_no})`}
+                        {isLocked && ' - LOCKED'}
                       </p>
                     ) : (
                       <p className="text-sm font-medium text-gray-400">Empty Slot</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-3 sm:mt-0">
-                    <button disabled={!summary} onClick={() => setLoadConfirmSlot(slot)} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors border border-indigo-200">
+                    <button 
+                      disabled={!summary || isLocked} 
+                      title={isLocked ? "Cannot load a locked project" : "Load Chart"}
+                      onClick={() => setLoadConfirmSlot(slot)} 
+                      className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors border border-indigo-200"
+                    >
                       Load Chart
                     </button>
                     <button disabled={!summary} onClick={() => executeDelete(slot)} className="p-2 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors" title="Delete Chart">
@@ -293,7 +329,7 @@ export default function ProjectsTab({
                   </div>
                 </div>
               );
-            })}
+            })}          
           </div>
           <div className="flex justify-end pt-2">
             <button onClick={() => setManageModalOpen(false)} className="px-5 py-2 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Close</button>

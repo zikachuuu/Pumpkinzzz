@@ -28,6 +28,7 @@ export function useProjectTracker() {
   const [ptFilter, setPtFilter] = useState([]); 
   const [milestoneStatusFilter, setMilestoneStatusFilter] = useState(ALL_STATUSES);
   const [componentStatusFilter, setComponentStatusFilter] = useState(ALL_STATUSES);
+  const [lockFilter, setLockFilter] = useState(['active', 'locked']);
   
   const [sortBy, setSortBy] = useState('tag_no-asc');
   const [milestoneSort, setMilestoneSort] = useState({ key: 'target', direction: 'asc' });
@@ -291,7 +292,10 @@ export function useProjectTracker() {
       const matchComponentStatus = componentItems.length === 0 || 
         componentItems.some(item => selectedComponentStatuses.includes(item.status.toLowerCase()));
 
-      return matchSearch && matchPt && matchMilestoneStatus && matchComponentStatus;
+      const projectStatus = p.is_locked === 1 ? 'locked' : 'active';
+      const matchLock = lockFilter.includes(projectStatus);
+
+      return matchSearch && matchPt && matchMilestoneStatus && matchComponentStatus && matchLock;
     })
     .sort((a, b) => {
       const [sortKey, direction] = sortBy.split('-');
@@ -329,6 +333,7 @@ export function useProjectTracker() {
     handleOpenEditModal, 
     handleSaveEdit, 
     getProjectDetailedSummary,
-    filteredProjects
+    filteredProjects, 
+    lockFilter, setLockFilter
   };
 }

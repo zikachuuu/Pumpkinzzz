@@ -352,7 +352,7 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
                     const isInvalid = pt.status === 'invalid';
                     return (
                       <option key={pt.id} value={pt.id} disabled={isInvalid} className={isInvalid ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'}>
-                        {pt.name} {isInvalid ? '(INVALID)' : `(${pt.status.toUpperCase()})`}
+                        {pt.name} {isInvalid ? '- LOCKED (Missing Configuration)' : ''}
                       </option>
                     );
                   })}
@@ -367,14 +367,13 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
                     const isValid = scheduleValidationMap[s.id];
                     return (
                       <option key={s.id} value={s.id} disabled={!isValid} className={!isValid ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'}>
-                        {s.name} {!isValid ? '(INCOMPLETE)' : '(COMPLETE)'}
+                        {s.name} {!isValid ? '- LOCKED (Missing Lead Times)' : ''}
                       </option>
                     );
                   })}
                 </select>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase">Contract Signed Date *</label>
@@ -390,6 +389,10 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase">Customer *</label>
               <input type="text" required value={formData.customer} onChange={(e) => setFormForm({ ...formData, customer: e.target.value })} placeholder="e.g. Apex Manufacturing Ltd." className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            </div>
+
+            <div className="text-xs text-gray-500 mt-1">
+              * denotes required fields.
             </div>
           </div>
 

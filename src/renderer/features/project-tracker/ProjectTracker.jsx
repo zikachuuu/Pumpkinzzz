@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Trash2, Edit2, ChevronDown, ChevronUp, Download, 
-  RefreshCw, Layers, Plus
+  RefreshCw, Layers, Plus, AlertCircle
 } from 'lucide-react';
 import { formatDate } from '../../utils/date';
 import Alert from '../../components/ui/Alert.jsx';
@@ -25,7 +25,8 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
     editingActual, setEditingActual, editingProject, setEditingProject, editForm, setEditForm,
     urgencySettings, handleExportProjects, handleActualDateUpdate, handleActualReceivedUpdate,
     getMilestoneStatus, sortRows, toggleTableSort, handleDeleteProject, 
-    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary, filteredProjects
+    handleOpenEditModal, handleSaveEdit, getProjectDetailedSummary, filteredProjects,
+    lockFilter, setLockFilter
   } = useProjectTracker();
 
   // 3. New State to ensure only ONE dropdown opens at a time
@@ -81,6 +82,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
         
         <div className="flex flex-wrap items-center justify-end gap-3 xl:flex-nowrap">
           <span className="shrink-0 text-[11px] font-semibold text-gray-600">Filter by</span>
+          
           <div className="flex items-end gap-2">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-semibold leading-none text-gray-600">Product Type</span>
@@ -118,7 +120,23 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                 onToggle={(isOpen) => setActiveDropdown(isOpen ? 'components' : null)}
               />
             </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold leading-none text-gray-600">Project Status</span>
+              <ChecklistFilter
+                label="Project Status"
+                className="w-[155px] shrink-0"
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'locked', label: 'Locked' }
+                ]}
+                selected={lockFilter}
+                onChange={setLockFilter}
+                isOpen={activeDropdown === 'project-status'}
+                onToggle={(isOpen) => setActiveDropdown(isOpen ? 'project-status' : null)}
+              />
+            </div>
           </div>
+          
           <div className="ml-3 flex items-center gap-2">
             <span className="shrink-0 text-[11px] font-semibold text-gray-600">Sort by</span>
             <select
@@ -158,17 +176,20 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
           {filteredProjects.map(p => {
             const summary = getProjectDetailedSummary(p);
             const isExpanded = expandedProject === p.tag_no;
+            const isLocked = p.is_locked === 1; // <-- 1. Identify lock status
 
             return (
               <div key={p.tag_no} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all hover:border-gray-300">
                 
                 {/* Project Summary Card Bar */}
                 <div 
-                  onClick={() => setExpandedProject(isExpanded ? null : p.tag_no)}
-                  className="p-6 flex flex-col gap-4 cursor-pointer select-none bg-white hover:bg-gray-50/50 transition"
+                  onClick={() => !isLocked && setExpandedProject(isExpanded ? null : p.tag_no)} // <-- 2. Disable click if locked
+                  className={`p-6 flex flex-col gap-4 select-none bg-white transition ${isLocked ? '' : 'cursor-pointer hover:bg-gray-50/50'}`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6">
+                    
+                    {/* 3. Apply blur, grayscale, and remove pointer events if locked */}
+                    <div className={`flex items-center space-x-6 transition-all duration-300 ${isLocked ? 'blur-[0.5px] opacity-75 pointer-events-none grayscale' : ''}`}>
                       <div>
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tag No.</span>
                         <h3 className="text-xl font-bold text-gray-900">{p.tag_no}</h3>
@@ -191,7 +212,8 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1">
+                    {/* Delete button remains active, chevron hides if locked */}
+                    <div className="flex items-center space-x-1 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -202,45 +224,54 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <div className="p-2 text-gray-400">
-                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </div>
+                      {!isLocked && (
+                        <div className="p-2 text-gray-400">
+                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Dynamic Status Breakdown */}
+                  {/* 4. Dynamic Status Breakdown OR Lock Error */}
                   <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
                     
-                    {/* Milestones Row */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 shrink-0">
-                        Milestones
-                      </span>
-                      {getProjectDetailedSummary(p).filter(item => item.milestones > 0).map(item => (
-                        <StatusBadge key={`m-${item.status}`} status={item.status} count={item.milestones} />
-                      ))}
-                      {getProjectDetailedSummary(p).filter(item => item.milestones > 0).length === 0 && (
-                        <span className="text-xs font-semibold text-gray-400">None</span>
-                      )}
-                    </div>
+                    {isLocked ? (
+                      <div className="flex items-center gap-2 text-red-800 font-bold text-xs bg-red-50 p-2.5 rounded-lg border border-red-200 shadow-sm">
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>PROJECT LOCKED: Incomplete Schedule or Procurement Lead Time Configuration. Please resolve in the Product Type Manager to unlock.</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Milestones Row */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 shrink-0">
+                            Milestones
+                          </span>
+                          {summary.filter(item => item.milestones > 0).map(item => (
+                            <StatusBadge key={`m-${item.status}`} status={item.status} count={item.milestones} />
+                          ))}
+                          {summary.filter(item => item.milestones > 0).length === 0 && (
+                            <span className="text-xs font-semibold text-gray-400">None</span>
+                          )}
+                        </div>
 
-                    {/* Components Row */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 shrink-0">
-                        Components Procurement
-                      </span>
-                      {getProjectDetailedSummary(p).filter(item => item.components > 0).map(item => (
-                        <StatusBadge key={`c-${item.status}`} status={item.status} count={item.components} />
-                      ))}
-                      {getProjectDetailedSummary(p).filter(item => item.components > 0).length === 0 && (
-                        <span className="text-xs font-semibold text-gray-400">None</span>
-                      )}
-                    </div>
-
+                        {/* Components Row */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 shrink-0">
+                            Components Procurement
+                          </span>
+                          {summary.filter(item => item.components > 0).map(item => (
+                            <StatusBadge key={`c-${item.status}`} status={item.status} count={item.components} />
+                          ))}
+                          {summary.filter(item => item.components > 0).length === 0 && (
+                            <span className="text-xs font-semibold text-gray-400">None</span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 
                 </div>
-
 
                 {/* Expanded Project Details */}
                 {isExpanded && (

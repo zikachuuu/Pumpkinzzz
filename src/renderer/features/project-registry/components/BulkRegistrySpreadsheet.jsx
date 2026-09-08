@@ -118,7 +118,7 @@ export default function BulkRegistrySpreadsheet({
       else {
         matchedPt = productTypes.find(pt => pt.name.toLowerCase() === r.product_type_name.toLowerCase());
         if (!matchedPt) errs.product_type_name = 'Product Type does not exist';
-        else if (matchedPt.status === 'invalid') errs.product_type_name = 'Product Type has status INVALID';
+        else if (matchedPt.status === 'invalid') errs.product_type_name = 'LOCKED: Invalid Configuration';
       }
 
       // Schedule Name Validation
@@ -127,7 +127,7 @@ export default function BulkRegistrySpreadsheet({
       else {
         const matchedSched = (allSchedules[matchedPt.id] || []).find(s => s.name.toLowerCase() === r.schedule_name.toLowerCase());
         if (!matchedSched) errs.schedule_name = 'Schedule does not exist';
-        else if (!scheduleValidationMap[matchedSched.id]) errs.schedule_name = 'Schedule is incomplete (No Procurement)';
+        else if (!scheduleValidationMap[matchedSched.id]) errs.schedule_name = 'LOCKED: Missing Lead Times';
       }
 
       // Date Validation

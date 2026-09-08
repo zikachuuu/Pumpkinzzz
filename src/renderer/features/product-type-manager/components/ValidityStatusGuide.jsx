@@ -28,23 +28,24 @@ export default function ModalValidityStatusGuide({ isOpen, onClose }) {
       isOpen={isOpen}
       title="Product Type Validity Status Guide"
       onClose={onClose}
+      maxWidth="max-w-xl"
     >
-      <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
+      <div className="space-y-3 text-xs text-gray-600 leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
           <strong className="block text-red-950 mb-1">🔴 INVALID (Default for newly created product types)</strong>
-          <p>The product type has no schedules, no BOM, or no procurement lead times.</p>
+          <p>The product type has no Schedules, no BOM, or no Procurement Lead Times.</p>
           <p>Invalid product types <strong>cannot</strong> be registered under new projects.</p>
         </div>
 
         <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
           <strong className="block text-amber-950 mb-1">🟡 SUB-VALID</strong>
-          <p>The product type has BOM, and at least one configured schedule associated with procurement lead time. </p>
-          <p>Sub-valid product types can be registered under new projects, but only with the configured schedules.</p>
+          <p>The product type has BOM, and at least one configured Schedule associated with Procurement Lead Times. </p>
+          <p>Sub-valid product types can be registered under new projects, but only configured schedules can be selected.</p>
         </div>
 
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
           <strong className="block text-emerald-950 mb-1">🟢 VALID (Complete)</strong>
-          <p>The product type has BOM, and <strong>every</strong> schedule is associated with procurement lead times.</p>
+          <p>The product type has BOM, and <strong>every</strong> Schedule is associated with Procurement Lead Times.</p>
           <p>Valid product types can be registered under new projects, and all schedules will be available for selection.</p>
         </div>
       </div>
