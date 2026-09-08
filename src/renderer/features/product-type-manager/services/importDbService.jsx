@@ -1,4 +1,5 @@
 import * as db from '../../../utils/db';
+const api = window.electronAPI;
 
 // --- HELPERS ---
 const getComponentByName = async (name) => {
@@ -16,77 +17,77 @@ const ensureAndAttachComponent = async (name, ptId, count = 1) => {
   return comp;
 };
 
-
-// --- FORMAT A / BOM ONLY ---
+// --- BOM ONLY ---
 export const commitFormatA = async (analysis, resolutions) => {
-  // 1. Process Brand New Product Types
   for (const pt of analysis.newPts) {
     const res = await db.addProductType(pt.name);
     const ptId = res.lastID;
     for (const compName of pt.components) {
-      await ensureAndAttachComponent(compName, ptId, pt.componentCounts?.[compName.toLowerCase()] || 1);
+      const count = pt.componentCounts?.[compName.toLowerCase()] || 1;
+      await ensureAndAttachComponent(compName, ptId, count);
     }
     await db.updateProductTypeStatus(ptId);
   }
 
-  // 2. Process Conflicts based on Resolutions
-  // Note: activeConflicts is already filtered to only include the ones the user chose to 'overwrite'
   for (const pt of analysis.conflictPts) {
     const ptId = pt.existingPt.id;
     const res = resolutions[pt.name];
     if (!res) continue; 
     
-    // Removals (Components)
     for (const compName of res.removeExistingComps || []) {
       const comp = await getComponentByName(compName);
       if (comp) await db.detachComponentFromProductType(comp.id, ptId);
     }
 
-    // Removals (Schedules - for BOM overwrites that wipe schedules)
     const existingSchedules = await db.getSchedules(ptId);
     for (const schedName of res.removeExistingScheds || []) {
       const sMatch = existingSchedules.find(s => s.name.toLowerCase() === schedName.toLowerCase());
-      if (sMatch) await db.deleteSchedule(sMatch.id, ptId);
+      if (sMatch) {
+        await api.dbRun(`DELETE FROM component_schedules WHERE schedule_id = ?`, [sMatch.id]);
+        await api.dbRun(`DELETE FROM milestones WHERE schedule_id = ?`, [sMatch.id]);
+        
+        const referencedProjects = await api.dbQuery(`SELECT COUNT(*) as count FROM projects WHERE schedule_id = ?`, [sMatch.id]);
+        if (referencedProjects[0].count === 0) await api.dbRun(`DELETE FROM schedules WHERE id = ?`, [sMatch.id]);
+      }
     }
 
-    // Additions (All components from CSV)
     for (const compName of pt.components) {
-      await ensureAndAttachComponent(compName, ptId, pt.componentCounts?.[compName.toLowerCase()] || 1);
+      const count = pt.componentCounts?.[compName.toLowerCase()] || 1;
+      await ensureAndAttachComponent(compName, ptId, count);
     }
     
     await db.updateProductTypeStatus(ptId);
   }
 };
 
-
-// --- FORMAT B / FULL DATA ---
+// --- FULL DATA (Includes Merge Logic) ---
 export const commitFormatB = async (analysis, resolutions, headers) => {
-  
-  // Shared logic for both New and Conflict PTs
   const processPtRows = async (ptId, ptData, ptResolutions = null) => {
     
-    // If it's an overwrite, handle removals first
     if (ptResolutions) {
-      // Detach removed components
       for (const compName of ptResolutions.removeExistingComps || []) {
         const comp = await getComponentByName(compName);
         if (comp) await db.detachComponentFromProductType(comp.id, ptId);
       }
       
-      // Delete schedules that are completely missing from the CSV
       const existingSchedules = await db.getSchedules(ptId);
       for (const schedName of ptResolutions.removeExistingScheds || []) {
         const sMatch = existingSchedules.find(s => s.name.toLowerCase() === schedName.toLowerCase());
-        if (sMatch) await db.deleteSchedule(sMatch.id, ptId);
+        if (sMatch) {
+          await api.dbRun(`DELETE FROM component_schedules WHERE schedule_id = ?`, [sMatch.id]);
+          await api.dbRun(`DELETE FROM milestones WHERE schedule_id = ?`, [sMatch.id]);
+          const referencedProjects = await api.dbQuery(`SELECT COUNT(*) as count FROM projects WHERE schedule_id = ?`, [sMatch.id]);
+          if (referencedProjects[0].count === 0) await api.dbRun(`DELETE FROM schedules WHERE id = ?`, [sMatch.id]);
+        }
       }
     }
 
-    // 1. Ensure all imported components are attached
+    // Attach all components with their proper counts
     for (const compName of ptData.components) {
-      await ensureAndAttachComponent(compName, ptId, ptData.componentCounts?.[compName.toLowerCase()] || 1);
+      const count = ptData.componentCounts?.[compName.toLowerCase()] || 1;
+      await ensureAndAttachComponent(compName, ptId, count);
     }
 
-    // 2. Group rows by Schedule Name
     const schedIdx = headers.indexOf('schedule name');
     const rowsBySchedule = {};
     for (const row of ptData.rows) {
@@ -98,21 +99,29 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
 
     const currentSchedules = await db.getSchedules(ptId);
 
-    // 3. Process each imported schedule
     for (const [sName, rows] of Object.entries(rowsBySchedule)) {
       
-      // If this is an overwrite, delete the old matching schedule before rebuilding it from CSV
+      // MERGE GUARD: If user explicitly deselected this schedule in the Merge UI, skip importing it entirely
+      if (ptResolutions && !ptResolutions.processSchedules.includes(sName)) {
+        continue;
+      }
+
+      let schedId;
+
+      // RE-USE existing schedule_id if overwriting, just wipe configurations
       if (ptResolutions) {
         const existingMatch = currentSchedules.find(s => s.name.toLowerCase() === sName.toLowerCase());
         if (existingMatch) {
-           await db.deleteSchedule(existingMatch.id, ptId);
+           schedId = existingMatch.id;
+           await api.dbRun(`DELETE FROM component_schedules WHERE schedule_id = ?`, [schedId]);
+           await api.dbRun(`DELETE FROM milestones WHERE schedule_id = ? AND LOWER(name) NOT IN ('contract signed', 'ros')`, [schedId]);
         }
       }
 
-      // Create new schedule (automatically spawns 'Contract Signed' and 'ROS')
-      const schedId = await db.addSchedule(ptId, sName);
+      if (!schedId) {
+        schedId = await db.addSchedule(ptId, sName);
+      }
       
-      // Pass 1: Parse and create all Milestones
       const mNameIdx = headers.indexOf('milestone name');
       const mRemarkIdx = headers.indexOf('milestone remark');
       
@@ -130,16 +139,13 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
         }
       }
 
-      // Pass 2: Anchor mapping & Component Lead Times
       const mAnchorIdx = headers.indexOf('anchor milestone name');
       const mOffsetIdx = headers.indexOf('offset (days)');
       const cNameIdx = headers.indexOf('component name');
-      const cCountIdx = headers.indexOf('component count');
       const cAnchorIdx = headers.indexOf('component anchor milestone');
       const cLeadIdx = headers.indexOf('lead time (days)');
 
       for (const row of rows) {
-        // Milestone Anchors
         const mName = row[mNameIdx]?.trim();
         const mAnchor = row[mAnchorIdx]?.trim();
         const mOffset = row[mOffsetIdx] ? parseInt(row[mOffsetIdx]) : 0;
@@ -154,9 +160,7 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
           }
         }
 
-        // Component Schedules
         const cName = row[cNameIdx]?.trim();
-        const cCount = cCountIdx !== -1 ? (parseInt(row[cCountIdx], 10) || 1) : 1;
         const cAnchor = row[cAnchorIdx]?.trim();
         const cLead = row[cLeadIdx] ? parseInt(row[cLeadIdx]) : 0;
 
@@ -167,7 +171,6 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
             const am = currentMiles.find(m => m.name.toLowerCase() === cAnchor.toLowerCase());
             if (am) {
               await db.saveComponentSchedule(schedId, comp.id, am.id, cLead);
-              await db.updateComponentCount(comp.id, ptId, cCount);
             }
           }
         }
@@ -176,15 +179,12 @@ export const commitFormatB = async (analysis, resolutions, headers) => {
     await db.updateProductTypeStatus(ptId);
   };
 
-  // 1. Process Brand New Product Types
   for (const pt of analysis.newPts) {
     const res = await db.addProductType(pt.name);
     const ptId = res.lastID;
     await processPtRows(ptId, pt, null);
   }
 
-  // 2. Process Conflicts based on Resolutions
-  // Note: activeConflicts is already filtered to only include the ones the user chose to 'overwrite'
   for (const pt of analysis.conflictPts) {
     const ptId = pt.existingPt.id;
     const resolutionsForPt = resolutions[pt.name];

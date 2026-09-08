@@ -15,7 +15,12 @@ export default function ImportWizardModal({
   openUsageModal 
 }) {
   const [analysis, setAnalysis] = useState(null);
+  
+  // State: 'keep' | 'overwrite' | 'merge'
   const [resolutions, setResolutions] = useState({});
+  // State: { ptName: { scheduleNameLower: 'db' | 'csv' | 'none' } }
+  const [mergeSelections, setMergeSelections] = useState({});
+  
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,6 +29,7 @@ export default function ImportWizardModal({
     } else {
       setAnalysis(null);
       setResolutions({});
+      setMergeSelections({});
     }
   }, [isOpen, importPayload]);
 
@@ -37,6 +43,8 @@ export default function ImportWizardModal({
 
     const schedIdx = headers.indexOf('schedule name');
     const mNameIdx = headers.indexOf('milestone name');
+
+    const initialMergeSelections = {};
 
     for (const importedPt of parsedProductTypes) {
       const existingPt = existingProductTypes.find(e => e.name.toLowerCase() === importedPt.name.toLowerCase());
@@ -92,12 +100,24 @@ export default function ImportWizardModal({
       const onlyExistingScheds = existingSchedules.filter(s => !csvSchedsLower.includes(s.name.toLowerCase()));
       const onlyImportedScheds = importedSchedules.filter(s => !dbSchedsLower.includes(s.name.toLowerCase()));
 
+      const isBomExactMatch = onlyExistingComps.length === 0 && onlyImportedComps.length === 0;
+
+      // Initialize Merge State (Default: keep all DB schedules, ignore new CSV ones until checked)
+      const ptMergeState = {};
+      const allScheds = new Set([...dbSchedsLower, ...csvSchedsLower]);
+      allScheds.forEach(sNameLower => {
+        const inDb = dbSchedsLower.includes(sNameLower);
+        ptMergeState[sNameLower] = inDb ? 'db' : 'none';
+      });
+      initialMergeSelections[importedPt.name] = ptMergeState;
+
       conflictPts.push({ 
         ...importedPt, 
         existingPt, 
         existingBOM, 
         existingSchedules, 
         importedSchedules,
+        isBomExactMatch,
         diffs: {
           inBothComps, onlyExistingComps, onlyImportedComps,
           inBothScheds, onlyExistingScheds, onlyImportedScheds
@@ -105,6 +125,7 @@ export default function ImportWizardModal({
       });
     }
 
+    setMergeSelections(initialMergeSelections);
     setAnalysis({ format, newPts, conflictPts, hardRejectedPts });
     setLoading(false);
   };
@@ -113,28 +134,60 @@ export default function ImportWizardModal({
     setResolutions(prev => ({ ...prev, [ptName]: decision }));
   };
 
+  const toggleMergeSelection = (ptName, schedNameLower, source) => {
+    setMergeSelections(prev => {
+      const ptMerge = { ...prev[ptName] };
+      const current = ptMerge[schedNameLower];
+      
+      // Toggle off if clicking the currently active one, otherwise swap/set to source
+      ptMerge[schedNameLower] = current === source ? 'none' : source;
+      
+      return { ...prev, [ptName]: ptMerge };
+    });
+  };
+
   const handleConfirm = async () => {
     setLoading(true);
     try {
       const activeConflicts = analysis.conflictPts.filter(pt => {
         const isLocked = pt.existingPt.in_use_count > 0;
         const decision = isLocked ? 'keep' : (resolutions[pt.name] || 'keep');
-        return decision === 'overwrite';
+        return decision === 'overwrite' || decision === 'merge';
       });
 
       const activeAnalysis = { ...analysis, conflictPts: activeConflicts };
-      
       const mappedRes = {};
+      
       activeConflicts.forEach(pt => {
-        const onlyExistingComps = pt.diffs.onlyExistingComps.map(c => c.name);
-        const onlyExistingScheds = pt.diffs.onlyExistingScheds.map(s => s.name);
+        const decision = resolutions[pt.name];
         
-        mappedRes[pt.name] = { 
-          isOverwrite: true, 
-          removeExistingComps: onlyExistingComps,
-          removeExistingScheds: onlyExistingScheds,
-          overwriteSchedules: pt.importedSchedules.map(s => s.name)
-        };
+        if (decision === 'overwrite') {
+          mappedRes[pt.name] = { 
+            isOverwrite: true, 
+            removeExistingComps: pt.diffs.onlyExistingComps.map(c => c.name),
+            removeExistingScheds: pt.existingSchedules.map(s => s.name),
+            processSchedules: pt.importedSchedules.map(s => s.name)
+          };
+        } else if (decision === 'merge') {
+          const ptMerge = mergeSelections[pt.name] || {};
+          
+          // Schedules user deselected or swapped to CSV
+          const removeExistingScheds = pt.existingSchedules
+            .filter(s => ptMerge[s.name.toLowerCase()] !== 'db')
+            .map(s => s.name);
+          
+          // Schedules user explicitly checked on the CSV side
+          const processSchedules = pt.importedSchedules
+            .filter(s => ptMerge[s.name.toLowerCase()] === 'csv')
+            .map(s => s.name);
+
+          mappedRes[pt.name] = {
+            isMerge: true,
+            removeExistingComps: [], // BOM is exact match for merge
+            removeExistingScheds,
+            processSchedules
+          };
+        }
       });
 
       if (analysis.format === 'bom') {
@@ -157,23 +210,40 @@ export default function ImportWizardModal({
   const hasScheduleLoss = analysis?.conflictPts?.some(pt => {
     const isLocked = pt.existingPt.in_use_count > 0;
     const decision = isLocked ? 'keep' : (resolutions[pt.name] || 'keep');
-    return decision === 'overwrite' && pt.existingSchedules.length > 0 && pt.importedSchedules.length === 0;
+    
+    if (decision === 'overwrite') {
+      return pt.existingSchedules.length > 0 && pt.importedSchedules.length === 0;
+    } else if (decision === 'merge') {
+      const ptMerge = mergeSelections[pt.name] || {};
+      const anyKept = Object.values(ptMerge).some(v => v !== 'none');
+      return pt.existingSchedules.length > 0 && !anyKept;
+    }
+    return false;
   });
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Confirm Spreadsheet Import" maxWidth="max-w-5xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Confirm Spreadsheet Import" maxWidth="max-w-6xl">
       {loading || !analysis ? (
         <div className="p-12 text-center text-gray-500 font-semibold animate-pulse">Analyzing spreadsheet data...</div>
       ) : (
-        <div className="space-y-4 max-h-[75vh] flex flex-col">
+        <div className="space-y-8 max-h-[80vh] flex flex-col">
           
           <div className="shrink-0 space-y-4">
+            <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <GitMerge className="w-5 h-5 text-indigo-700" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">Review Data Before Importing</h3>
+                <p className="text-sm text-gray-500">Please review the new product types and conflict resolutions before confirming the import.</p>
+              </div>
+            </div>
 
             {hasScheduleLoss && (
               <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex items-start gap-3 text-red-900 text-sm shadow-sm animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />
                 <p>
-                  <strong>Severe Data Loss Warning:</strong> You have chosen to overwrite an existing Product Type with a spreadsheet that contains NO schedules. Doing so will <strong>permanently delete</strong> all of its existing Schedules, Milestones, and Procurement Lead Times.
+                  <strong>Severe Data Loss Warning:</strong> You have chosen a resolution that removes all schedules from an existing Product Type. Doing so will <strong>permanently delete</strong> its Schedules, Milestones, and Procurement Lead Times.
                 </p>
               </div>
             )}
@@ -181,7 +251,7 @@ export default function ImportWizardModal({
 
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-2">
             
-            {/* --- SECTION 1: NEW PRODUCT TYPES (Grid Layout) --- */}
+            {/* --- SECTION 1: NEW PRODUCT TYPES --- */}
             {analysis.newPts.length > 0 && (
               <div className="space-y-4">
                 <h4 className="font-bold text-gray-800 flex items-center gap-2">
@@ -215,7 +285,7 @@ export default function ImportWizardModal({
                             ) : pt.importedSchedules.map(s => (
                               <li key={s.name} className="text-[11px] bg-white border border-emerald-200 px-2 py-1.5 rounded flex justify-between text-emerald-900">
                                 <span className="font-semibold">{s.name}</span>
-                                <span>{s.milestoneCount} ms</span>
+                                <span>{s.milestoneCount} milestones</span>
                               </li>
                             ))}
                           </ul>
@@ -239,10 +309,14 @@ export default function ImportWizardModal({
                   const inUseCount = pt.existingPt.in_use_count || 0;
                   const isLocked = inUseCount > 0;
                   const decision = isLocked ? 'keep' : (resolutions[pt.name] || 'keep');
+                  
                   const isOverwrite = decision === 'overwrite';
+                  const isMerge = decision === 'merge';
+
+                  const ptMergeSelections = mergeSelections[pt.name] || {};
 
                   return (
-                    <div key={pt.name} className={`border rounded-lg overflow-hidden transition-colors ${isOverwrite ? 'border-red-300 shadow-md' : 'border-gray-200 shadow-sm'}`}>
+                    <div key={pt.name} className={`border rounded-lg overflow-hidden transition-colors ${isOverwrite ? 'border-red-300 shadow-md' : isMerge ? 'border-purple-300 shadow-md' : 'border-gray-200 shadow-sm'}`}>
                       <div className="bg-white px-4 py-3 border-b border-gray-100 flex flex-wrap gap-2 items-center justify-between">
                         
                         <div className="flex items-center space-x-3">
@@ -253,25 +327,38 @@ export default function ImportWizardModal({
                         <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
                           <button
                             onClick={() => !isLocked && setDecision(pt.name, 'keep')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${!isOverwrite ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${(!isOverwrite && !isMerge) ? 'bg-white text-gray-800 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
                           >
                             Keep Current
                           </button>
 
-                          {/* BULLETPROOF TOOLTIP FIX */}
+                          {/* DYNAMIC MERGE BUTTON */}
+                          {pt.isBomExactMatch && analysis.format === 'full' && (
+                            <button
+                              onClick={() => !isLocked && setDecision(pt.name, 'merge')}
+                              aria-disabled={isLocked}
+                              title={isLocked ? 'Currently in use product type cannot have schedules merged.' : 'Select specific schedules to import'}
+                              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                isLocked ? 'text-gray-400 cursor-not-allowed opacity-50' 
+                                : isMerge ? 'bg-purple-100 text-purple-800 shadow-sm border border-purple-300' 
+                                : 'text-gray-500 hover:text-gray-700'
+                              }`}
+                            >
+                              Merge Schedules
+                            </button>
+                          )}
+
                           <button
                             onClick={(e) => {
-                              if (isLocked) return; // Guard prevents action
+                              if (isLocked) return;
                               setDecision(pt.name, 'overwrite');
                             }}
                             aria-disabled={isLocked}
                             title={isLocked ? 'Currently in use product type cannot be overwritten.' : 'Overwrite with new data'}
                             className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                              isLocked 
-                                ? 'text-gray-400 cursor-not-allowed opacity-50' 
-                                : isOverwrite 
-                                  ? 'bg-red-100 text-red-800 shadow-sm border border-red-300' 
-                                  : 'text-gray-500 hover:text-gray-700'
+                              isLocked ? 'text-gray-400 cursor-not-allowed opacity-50' 
+                              : isOverwrite ? 'bg-red-100 text-red-800 shadow-sm border border-red-300' 
+                              : 'text-gray-500 hover:text-gray-700'
                             }`}
                           >
                             Overwrite with New
@@ -282,7 +369,7 @@ export default function ImportWizardModal({
 
                       <div className="grid grid-cols-2 divide-x divide-gray-100">
                         {/* LEFT: Current Database */}
-                        <div className={`p-4 space-y-4 ${!isOverwrite ? 'bg-indigo-50/30' : 'bg-gray-50'}`}>
+                        <div className={`p-4 space-y-4 ${(!isOverwrite && !isMerge) ? 'bg-indigo-50/30' : isMerge ? 'bg-purple-50/30' : 'bg-gray-50'}`}>
                           <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">From Current Database</h4>
                           
                           <div>
@@ -291,7 +378,7 @@ export default function ImportWizardModal({
                               {pt.existingBOM.length === 0 ? <span className="text-xs text-gray-400 italic">None</span> : (
                                 <>
                                   {pt.diffs.inBothComps.map(c => (
-                                    <span key={c.name} className={`px-2 py-1 rounded text-[10px] font-medium border ${!isOverwrite ? 'bg-white border-gray-200 text-gray-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>{c.name}</span>
+                                    <span key={c.name} className={`px-2 py-1 rounded text-[10px] font-medium border ${(!isOverwrite && !isMerge) ? 'bg-white border-gray-200 text-gray-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>{c.name}</span>
                                   ))}
                                   {pt.diffs.onlyExistingComps.map(c => (
                                     <span key={c.name} className={`px-2 py-1 rounded text-[10px] font-medium border transition-colors ${isOverwrite ? 'bg-red-50 border-red-200 text-red-700 line-through opacity-70' : 'bg-white border-gray-200 text-gray-700'}`}>{c.name}</span>
@@ -304,28 +391,40 @@ export default function ImportWizardModal({
                           <div>
                             <div className="flex items-center gap-1.5 mb-2 text-xs font-bold text-gray-700"><Calendar className="w-3.5 h-3.5"/> Attached Schedules</div>
                             <ul className="space-y-1.5">
-                              {pt.existingSchedules.length === 0 ? <span className="text-xs text-gray-400 italic">None</span> : (
-                                <>
-                                  {pt.diffs.inBothScheds.map(s => (
-                                    <li key={s.id} className={`text-[11px] px-2 py-1.5 rounded flex justify-between border ${!isOverwrite ? 'bg-white border-gray-200 text-gray-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
+                              {pt.existingSchedules.length === 0 ? <span className="text-xs text-gray-400 italic">None</span> : pt.existingSchedules.map(s => {
+                                const sLower = s.name.toLowerCase();
+                                const inUse = s.in_use_count > 0;
+                                const isChecked = !isMerge || ptMergeSelections[sLower] === 'db';
+                                
+                                return (
+                                  <li key={s.id} className={`text-[11px] px-2 py-1.5 rounded flex justify-between items-center border transition-colors ${
+                                    isMerge ? (isChecked ? 'bg-white border-purple-200 text-purple-900 shadow-sm' : 'bg-gray-100 border-gray-200 text-gray-400 opacity-60 line-through')
+                                    : !isOverwrite ? 'bg-white border-gray-200 text-gray-700' 
+                                    : 'bg-red-50 border-red-200 text-red-700 line-through opacity-70'
+                                  }`}>
+                                    <div className="flex items-center gap-2">
+                                      {isMerge && (
+                                        <input 
+                                          type="checkbox" 
+                                          checked={isChecked}
+                                          disabled={inUse}
+                                          onChange={() => toggleMergeSelection(pt.name, sLower, 'db')}
+                                          className="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                      )}
                                       <span className="font-semibold">{s.name}</span>
-                                      <span>{s.milestoneCount} ms</span>
-                                    </li>
-                                  ))}
-                                  {pt.diffs.onlyExistingScheds.map(s => (
-                                    <li key={s.id} className={`text-[11px] px-2 py-1.5 rounded flex justify-between border transition-colors ${isOverwrite ? 'bg-red-50 border-red-200 text-red-700 line-through opacity-70' : 'bg-white border-gray-200 text-gray-700'}`}>
-                                      <span className="font-semibold">{s.name}</span>
-                                      <span>{s.milestoneCount} ms</span>
-                                    </li>
-                                  ))}
-                                </>
-                              )}
+                                      {inUse && <UsageCapsule count={s.in_use_count} onClick={() => openUsageModal('schedule', s.id, s.name)} />}
+                                    </div>
+                                    <span>{s.milestoneCount} milestones</span>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         </div>
                         
                         {/* RIGHT: Spreadsheet Import */}
-                        <div className={`p-4 space-y-4 ${isOverwrite ? 'bg-blue-50/30' : 'bg-gray-50'}`}>
+                        <div className={`p-4 space-y-4 ${isOverwrite ? 'bg-blue-50/30' : isMerge ? 'bg-purple-50/30' : 'bg-gray-50'}`}>
                           <h4 className="text-[10px] font-bold text-blue-800 uppercase tracking-wider text-center">From Uploaded Spreadsheet</h4>
                           
                           <div>
@@ -351,25 +450,36 @@ export default function ImportWizardModal({
                                 <div className={`text-xs px-3 py-2 rounded font-semibold italic text-center border ${isOverwrite && pt.existingSchedules.length > 0 ? 'bg-white border-red-200 text-red-600' : 'border-gray-200 text-gray-400 bg-gray-50'}`}>
                                   BLANK
                                 </div>
-                              ) : (
-                                <>
-                                  {pt.diffs.inBothScheds.map(s => {
-                                    const impS = pt.importedSchedules.find(is => is.name.toLowerCase() === s.name.toLowerCase());
-                                    return (
-                                      <li key={s.id} className={`text-[11px] px-2 py-1.5 rounded flex justify-between border ${isOverwrite ? 'bg-white border-blue-100 text-blue-900' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
-                                        <span className="font-semibold">{s.name}</span>
-                                        <span>{impS?.milestoneCount} ms</span>
-                                      </li>
-                                    );
-                                  })}
-                                  {pt.diffs.onlyImportedScheds.map(s => (
-                                    <li key={s.name} className={`text-[11px] px-2 py-1.5 rounded flex justify-between border transition-colors ${isOverwrite ? 'bg-teal-50 border-teal-300 text-teal-800 font-bold' : 'bg-gray-100 border-gray-200 text-gray-400 line-through opacity-70'}`}>
+                              ) : pt.importedSchedules.map(s => {
+                                const sLower = s.name.toLowerCase();
+                                const isChecked = isOverwrite || ptMergeSelections[sLower] === 'csv';
+                                
+                                // Check if this schedule clashes with a DB schedule that is currently in use
+                                const existingMatch = pt.existingSchedules.find(ex => ex.name.toLowerCase() === sLower);
+                                const isDbInUse = existingMatch ? existingMatch.in_use_count > 0 : false;
+
+                                return (
+                                  <li key={s.name} className={`text-[11px] px-2 py-1.5 rounded flex items-center justify-between border transition-colors ${
+                                    isMerge ? (isChecked ? 'bg-white border-purple-200 text-purple-900 shadow-sm font-bold' : 'bg-gray-100 border-gray-200 text-gray-400 opacity-60 line-through')
+                                    : isOverwrite ? 'bg-teal-50 border-teal-300 text-teal-800 font-bold' 
+                                    : 'bg-gray-100 border-gray-200 text-gray-400 line-through opacity-70'
+                                  }`}>
+                                    <div className="flex items-center gap-2">
+                                      {isMerge && (
+                                        <input 
+                                          type="checkbox" 
+                                          checked={isChecked}
+                                          disabled={isDbInUse}
+                                          onChange={() => toggleMergeSelection(pt.name, sLower, 'csv')}
+                                          className="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                      )}
                                       <span className="font-semibold">{s.name}</span>
-                                      <span>{s.milestoneCount} ms</span>
-                                    </li>
-                                  ))}
-                                </>
-                              )}
+                                    </div>
+                                    <span>{s.milestoneCount} milestones</span>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         </div>

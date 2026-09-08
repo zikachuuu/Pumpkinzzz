@@ -10,7 +10,7 @@ export default function EditProjectModal({ editingProject, setEditingProject, ed
       isOpen={!!editingProject}
       onClose={() => setEditingProject(null)}
       title={`Edit Project "${editingProject.tag_no}"`}
-      maxWidth="max-w-lg"
+      maxWidth="max-w-xl"
     >
       <form onSubmit={handleSaveEdit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
         <div>

@@ -6,12 +6,10 @@ import * as db from '../../utils/db';
 
 // Component Imports
 import BatchProductTypeSection from './components/BatchProductTypeSection';
-import BatchScheduleSection from './components/BatchScheduleSection';
 import Alert from '../../components/ui/Alert';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ModalValidityStatusGuide from './components/ValidityStatusGuide';
-import ExportScheduleModal from './components/ExportScheduleModal'; // Your new Modal from Step 1
 import { selectAndParseImportFile } from './services/importCsvService';
 import ImportWizardModal from './components/ImportWizardModal';
 import CsvFormatErrorModal from '../../components/ui/CsvFormatErrorModal.jsx';
@@ -29,7 +27,7 @@ import { useProductType } from './hooks/useProductType';
 import { useProductTypeConfig } from './hooks/useProductTypeConfig';
 import { useProductTypeCsv } from './hooks/useProductTypeCsv';
 
-import { exportFormatA, exportFormatB, exportBatchFormatA, exportBatchFormatB } from './services/exportCsvService';
+import { exportBatchFormatA, exportBatchFormatB } from './services/exportCsvService';
 
 export default function ProductTypeManager() {
   const [loading, setLoading] = useState(true);
@@ -45,14 +43,13 @@ export default function ProductTypeManager() {
   
   // CSV Section Toggle States
   const [showBatchCsvOptions, setShowBatchCsvOptions] = useState(false);
-  const [showScheduleCsvOptions, setShowScheduleCsvOptions] = useState(false);
-  const [showExportScheduleModal, setShowExportScheduleModal] = useState(false); 
   const [wizardPayload, setWizardPayload] = useState(null);
   const [showFormatErrorModal, setShowFormatErrorModal] = useState(false);
   const [uploadedHeaders, setUploadedHeaders] = useState([]);
   const [expectedHeaders, setExpectedHeaders] = useState([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportMode, setExportMode] = useState('bom');
+  
   const [usageModal, setUsageModal] = useState({ isOpen: false, type: '', id: null, name: '' });
   const openUsageModal = (type, id, name) => setUsageModal({ isOpen: true, type, id, name });
 
@@ -63,7 +60,6 @@ export default function ProductTypeManager() {
         setWizardPayload(payload);
       }
     } catch (err) {
-      // Check if it's our structured format error
       if (err.isFormatError) {
         setUploadedHeaders(err.uploadedHeaders);
         setExpectedHeaders(err.expectedHeaders);
@@ -78,7 +74,6 @@ export default function ProductTypeManager() {
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   const [scheduleNameInput, setScheduleNameInput] = useState('');
 
-  // Milestone edit/add state
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState(null); 
   const [milestoneForm, setMilestoneForm] = useState({
@@ -99,7 +94,6 @@ export default function ProductTypeManager() {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  // 1. DEFINE FUNCTIONS BEFORE HOOKS TO AVOID REFERENCE ERRORS
   const loadGlobalComponents = async () => {
     try {
       setAllGlobalComponents(await db.getComponents());
@@ -124,10 +118,8 @@ export default function ProductTypeManager() {
     handleSaveLeadTimesForSchedule
   } = useProductTypeConfig(triggerAlert);    
 
-const {
-    handleDownloadPtTemplate, handleDownloadSchedTemplate, 
-    handleExportSchedules, handleExportMilestonesOnly, 
-    handleImportSchedules
+  const {
+    handleDownloadPtTemplate
   } = useProductTypeCsv({
     triggerAlert, setLoading, loadProductTypes, loadGlobalComponents,
     selectedPt, scheduleValidity, handleSelectProductType
@@ -257,21 +249,6 @@ const {
             </div>
           </div>
         </div>
-
-        <BatchScheduleSection 
-          open={showScheduleCsvOptions}
-          onToggle={() => setShowScheduleCsvOptions(prev => !prev)}
-          onExportBomOnly={() => exportFormatA(selectedPt, triggerAlert)}
-          onOpenExportFullModal={() => setShowExportScheduleModal(true)}
-          onImport={() => { handleUniversalImportClick(); }}
-        />
-
-        <ExportScheduleModal
-          isOpen={showExportScheduleModal}
-          onClose={() => setShowExportScheduleModal(false)}
-          schedules={schedules}
-          onConfirmExport={(selectedIds) => exportFormatB(selectedPt, selectedIds, triggerAlert)}
-        />
 
         <Alert alert={alert} />
 
@@ -444,8 +421,6 @@ const {
       <BatchProductTypeSection
         open={showBatchCsvOptions}
         onToggle={() => setShowBatchCsvOptions(open => !open)}
-        
-        // Pass the handlers to open the modal and set the mode
         onOpenExportBomModal={() => {
           setExportMode('bom');
           setShowExportModal(true);
@@ -454,7 +429,6 @@ const {
           setExportMode('full');
           setShowExportModal(true);
         }}
-        
         onImport={handleUniversalImportClick} 
       />
 
@@ -527,10 +501,9 @@ const {
               <div className="flex space-x-3">
                   <button onClick={() => { setPtRenameId(pt.id); setPtRenameInput(pt.name); }} className="hover:text-indigo-600 transition">Rename</button>
                   
-                  {/* BULLETPROOF TOOLTIP & DISABLED STATE */}
                   <button 
                     onClick={(e) => {
-                      if (pt.in_use_count > 0) return; // Guard prevents action
+                      if (pt.in_use_count > 0) return; 
                       handleDeleteProductType(pt.id, pt.name);
                     }} 
                     aria-disabled={pt.in_use_count > 0}
@@ -595,7 +568,6 @@ const {
         expectedHeaders={expectedHeaders} 
       />
 
-      {/* Add the new Export Selection Modal here */}
       <ExportSelectionModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
