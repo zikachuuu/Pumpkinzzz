@@ -249,6 +249,16 @@ export default function ProductTypeManager() {
     }
   };
 
+  const handleUpdateComponentCount = async (componentId, count) => {
+    try {
+      await db.updateComponentCount(componentId, selectedPt.id, count);
+      triggerAlert('success', 'Component count updated successfully.');
+      await handleSelectProductType(selectedPt, true);
+    } catch (err) {
+      triggerAlert('error', `Failed to update component count: ${err.message}`);
+    }
+  };
+
 
   if (selectedPt) {
     return (
@@ -301,6 +311,7 @@ export default function ProductTypeManager() {
             productTypes={productTypes} productTypeId={selectedPt.id} attachedComponents={attachedComponents} sourceComponents={sourceComponents}
             handleAttachExistingComponent={handleAttachExistingComponent} handleCreateGlobalComponent={handleCreateGlobalComponent}
             handleDetachComponent={handleDetachComponent} componentProductTypeId={componentProductTypeId}
+            handleUpdateComponentCount={handleUpdateComponentCount}
             setComponentProductTypeId={setComponentProductTypeId} selectedGlobalComponentId={selectedGlobalComponentId}
             setSelectedGlobalComponentId={setSelectedGlobalComponentId} componentForm={componentForm}
             setComponentForm={setComponentForm} allGlobalComponents={allGlobalComponents}

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Tag, Trash2, Info } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { PackagePlus, Tag, Trash2, Info } from 'lucide-react';
 
 export default function BomTab({
     productTypes, // Needed for the dropdown
@@ -8,6 +8,7 @@ export default function BomTab({
     sourceComponents,
     handleAttachExistingComponent,
     handleCreateGlobalComponent,
+    handleUpdateComponentCount,
     handleDetachComponent,
     componentProductTypeId,
     setComponentProductTypeId,
@@ -19,6 +20,13 @@ export default function BomTab({
     setComponentCount,
     allGlobalComponents, 
 }) {
+  const [componentCounts, setComponentCounts] = useState({});
+
+  useEffect(() => {
+    setComponentCounts(Object.fromEntries(
+      attachedComponents.map(component => [component.id, component.component_count ?? 1])
+    ));
+  }, [attachedComponents]);
 
 // 👇 ADD THIS LOGIC BLOCK 👇
 // If a filter is selected, use DB source components. Otherwise, use all global components.
@@ -50,9 +58,9 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                     <select
                       value={selectedGlobalComponentId}
                       onChange={(e) => setSelectedGlobalComponentId(e.target.value)}
-                      className="block w-[48%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                      className="block min-w-0 w-[46%] rounded-md border border-gray-300 px-2 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                     >
-                      <option value="">- Select Component -</option>
+                      <option value="">-- Select Component --</option>
                       {availableComponents.map(component => (
                         <option key={component.id} value={component.id}>
                           {component.name}
@@ -66,7 +74,7 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                       value={componentCount}
                       onChange={(e) => setComponentCount(e.target.value)}
                       aria-label="Component count"
-                      className="block w-[20%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="block min-w-0 w-[18%] rounded-md border border-gray-300 px-2 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
 
                     {/* PT Filter Dropdown (Smaller) */}
@@ -77,7 +85,7 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                           setSelectedGlobalComponentId(''); // Reset selection when filter changes
                       }}
                       title="Filter by Product Type"
-                      className="block w-[32%] rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
+                      className="block min-w-0 w-[36%] rounded-md border border-gray-300 px-2 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50 text-gray-600"
                     >
                       <option value="">All Product Types</option>
                       {productTypes.map(pt => (
@@ -107,7 +115,10 @@ component => !attachedComponents.some(attached => attached.id === component.id)
             </div>
 
             <div>
-            <h3 className="font-bold text-gray-900 text-md mb-3">Create New Component Globally</h3>
+            <h3 className="font-bold text-gray-900 text-md mb-3 flex items-center space-x-2">
+              <PackagePlus className="w-4 h-4 text-indigo-500" />
+              <span>Create New Component Globally</span>
+            </h3>
             <form onSubmit={handleCreateGlobalComponent} className="space-y-4">
                 <div>
                 <label className="block text-xs font-bold text-gray-600 uppercase">Component Name</label>
@@ -183,11 +194,16 @@ component => !attachedComponents.some(attached => attached.id === component.id)
                           <input
                             type="number"
                             min="1"
-                            value={c.component_count ?? 1}
-                            onChange={async (e) => {
-                              const count = Math.max(1, parseInt(e.target.value, 10) || 1);
-                              await db.updateComponentCount(c.id, productTypeId, count);
-                              c.component_count = count;
+                            value={componentCounts[c.id] ?? c.component_count ?? 1}
+                            onChange={(e) => {
+                              setComponentCounts(prev => ({ ...prev, [c.id]: e.target.value }));
+                            }}
+                            onBlur={async () => {
+                              const count = Math.max(1, parseInt(componentCounts[c.id], 10) || 1);
+                              setComponentCounts(prev => ({ ...prev, [c.id]: count }));
+                              if (count !== (c.component_count ?? 1)) {
+                                await handleUpdateComponentCount(c.id, count);
+                              }
                             }}
                             className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
                           />
