@@ -257,6 +257,13 @@ export async function saveComponentSchedule(scheduleId, componentId, anchorMiles
   );
 }
 
+export async function deleteComponentSchedule(scheduleId, componentId) {
+  return api.dbRun(
+    `DELETE FROM component_schedules WHERE schedule_id = ? AND component_id = ?`,
+    [scheduleId, componentId]
+  );
+}
+
 // ==========================================
 // 5. PROJECTS
 // ==========================================

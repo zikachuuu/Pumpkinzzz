@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Info } from 'lucide-react';
+import { Save, Info } from 'lucide-react';
 
 export default function LeadTimesTab({
     schedules,
@@ -36,7 +36,7 @@ export default function LeadTimesTab({
                 disabled={attachedComponents.length === 0 || schedules.length === 0}
                 className="flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow disabled:bg-gray-300 disabled:cursor-not-allowed transition"
                 >
-                <Check className="w-4 h-4" />
+                <Save className="w-4 h-4" />
                 <span>Save for All Schedules</span>
             </button>
         </div>
@@ -79,7 +79,7 @@ export default function LeadTimesTab({
                             onClick={() => handleSaveLeadTimesForSchedule(s.id)}
                             className="flex items-center space-x-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded text-xs font-bold transition"
                         >
-                            <Check className="w-3.5 h-3.5" />
+                            <Save className="w-3.5 h-3.5" />
                             <span>Save for {s.name}</span>
                         </button>
                       </div>
@@ -124,7 +124,7 @@ export default function LeadTimesTab({
                                             }}
                                             className="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-xs focus:border-indigo-500 focus:outline-none"
                                         >
-                                            <option value="">ROS</option>
+                                            <option value="">-- Select milestone --</option>
                                             {activeMilestones.map(m => (
                                                 <option key={m.id} value={m.id}>
                                                 {m.name}

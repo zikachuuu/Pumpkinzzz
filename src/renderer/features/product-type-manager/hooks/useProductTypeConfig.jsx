@@ -183,26 +183,34 @@ export function useProductTypeConfig(triggerAlert) {
     if (!selectedPt) return;
     setIsDetailLoading(true);
     try {
+      let hasIncompleteSchedule = false;
       for (const s of schedules) {
         const schedMilestones = await db.getMilestones(s.id);
-        const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id || schedMilestones[0]?.id;
+        const milestoneIds = new Set(schedMilestones.map(m => String(m.id)));
 
         for (const c of attachedComponents) {
           const key = `${c.id}-${s.id}`;
           const config = leadTimeSettings[key];
-          const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
+          const anchorId = config?.anchor_id ? String(config.anchor_id) : '';
           const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
 
-          if (anchorId) {
-            await db.saveComponentSchedule(s.id, c.id, anchorId, leadTime);
+          if (milestoneIds.has(anchorId)) {
+            await db.saveComponentSchedule(s.id, c.id, parseInt(anchorId), leadTime);
+          } else {
+            hasIncompleteSchedule = true;
+            await db.deleteComponentSchedule(s.id, c.id);
           }
         }
       }
       await db.updateProductTypeStatus(selectedPt.id);
-      triggerAlert('success', 'Component schedule lead times saved and status updated!');
+      if (hasIncompleteSchedule) {
+        triggerAlert('error', 'Some product types have incomplete procurement lead time configurations. Please ensure every attached component has a valid anchor milestone and lead time.');
+      } else {
+        triggerAlert('success', 'Procurement lead times saved and status updated!');
+      }
       await handleSelectProductType(selectedPt, true);
     } catch (err) {
-      triggerAlert('error', `Failed to save lead times: ${err.message}`);
+      triggerAlert('error', `Failed to save procurement lead times: ${err.message}`);
     } finally {
       setIsDetailLoading(false);
     }
@@ -212,14 +220,21 @@ export function useProductTypeConfig(triggerAlert) {
   const refreshScheduleValidity = async (scheduleList, components) => {
     const validityEntries = await Promise.all(scheduleList.map(async schedule => {
       const configured = await db.getComponentSchedules(schedule.id);
-      const isValid = components.length > 0 && configured.length >= components.length;
+      const milestonesForSchedule = await db.getMilestones(schedule.id);
+      const milestoneIds = new Set(milestonesForSchedule.map(m => String(m.id)));
+      const configuredComponentIds = new Set(
+        configured
+          .filter(cs => milestoneIds.has(String(cs.anchor_milestone_id)))
+          .map(cs => cs.component_id)
+      );
+      const isValid = components.length > 0 && configuredComponentIds.size >= components.length;
       return [schedule.id, {
         isValid,
         reason: components.length === 0
           ? 'Attach at least one component first.'
           : isValid
             ? 'All attached components have lead times for this schedule.'
-            : 'Indicate lead time for every attached component.'
+            : 'Select a valid anchor milestone and indicate lead time for every attached component.'
       }];
     }));
     setScheduleValidity(Object.fromEntries(validityEntries));
@@ -247,24 +262,33 @@ export function useProductTypeConfig(triggerAlert) {
     
     try {
       const schedMilestones = await db.getMilestones(scheduleId);
-      const defaultAnchorId = schedMilestones.find(m => m.name.toLowerCase() === 'ros')?.id || schedMilestones[0]?.id;
+      const milestoneIds = new Set(schedMilestones.map(m => String(m.id)));
+      let hasIncompleteSchedule = false;
 
       for (const c of attachedComponents) {
         const key = `${c.id}-${scheduleId}`;
         const config = leadTimeSettings[key];
-        const anchorId = config?.anchor_id ? parseInt(config.anchor_id) : defaultAnchorId;
+        const anchorId = config?.anchor_id ? String(config.anchor_id) : '';
         const leadTime = config?.lead_time !== undefined ? parseInt(config.lead_time) : 0;
 
-        if (anchorId) {
-          await db.saveComponentSchedule(scheduleId, c.id, anchorId, leadTime);
+        if (milestoneIds.has(anchorId)) {
+          await db.saveComponentSchedule(scheduleId, c.id, parseInt(anchorId), leadTime);
+        } else {
+          hasIncompleteSchedule = true;
+          await db.deleteComponentSchedule(scheduleId, c.id);
         }
       }
 
       await db.updateProductTypeStatus(selectedPt.id);
       await refreshScheduleValidity(schedules, attachedComponents);
-      triggerAlert('success', 'Lead times saved successfully for this schedule!');
+      triggerAlert(
+        hasIncompleteSchedule ? 'error' : 'success',
+        hasIncompleteSchedule
+          ? 'Please select a valid anchor milestone for each attached component. Procurement lead times not saved.'
+          : 'Procurement lead times saved successfully for this schedule!'
+      );
     } catch (err) {
-      triggerAlert('error', `Failed to save lead times: ${err.message}`);
+      triggerAlert('error', `Failed to save procurement lead times: ${err.message}`);
     } finally {
       setIsDetailLoading(false);
     }
