@@ -91,7 +91,6 @@ export default function ProductTypeManager() {
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
   };
 
   const loadGlobalComponents = async () => {
@@ -271,7 +270,7 @@ export default function ProductTypeManager() {
           </div>
         </div>
 
-        <Alert alert={alert} />
+        <Alert alert={alert} onDismiss={() => setAlert(null)} />
 
         <div className="border-b border-gray-200 bg-white rounded-t-lg">
           <nav className="flex px-6 space-x-8" aria-label="Tabs">
@@ -454,7 +453,7 @@ export default function ProductTypeManager() {
         onImport={handleUniversalImportClick} 
       />
 
-      <Alert alert={alert} />
+      <Alert alert={alert} onDismiss={() => setAlert(null)} />
 
       {/* Search, Filters, and Sort */}
       <div className="flex flex-col xl:flex-row xl:items-center gap-4 xl:gap-8 bg-white rounded-lg border border-gray-200 p-5 shadow-sm">

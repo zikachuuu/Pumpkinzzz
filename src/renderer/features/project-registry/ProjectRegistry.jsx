@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Download, Upload, Save, ArrowLeft, AlertCircle, CheckCircle2, 
+  Download, Upload, Save, ArrowLeft,
   RefreshCw, Info, Plus, Check, X
 } from 'lucide-react';
 import * as db from '../../utils/db';
@@ -49,7 +49,6 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
   };
 
   useEffect(() => {
@@ -280,14 +279,7 @@ export default function ProjectRegistry({ onRedirectToTracker, dateFormat }) {
         </div>
       </div>
 
-      {alert && (
-        <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-          alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {alert.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          <span className="text-sm font-semibold">{alert.message}</span>
-        </div>
-      )}
+      <Alert alert={alert} onDismiss={() => setAlert(null)} />
 
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <h3 className="font-bold text-gray-900 text-md border-b border-gray-100 pb-3 mb-4">

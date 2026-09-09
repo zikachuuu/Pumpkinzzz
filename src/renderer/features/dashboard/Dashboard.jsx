@@ -17,7 +17,6 @@ export default function Dashboard({ dateFormat }) {
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
   };
 
   const {
@@ -89,7 +88,7 @@ export default function Dashboard({ dateFormat }) {
         </div>
       </div>
 
-      <Alert alert={alert} />
+      <Alert alert={alert} onDismiss={() => setAlert(null)} />
 
       {/* Render Active View */}
       {activeTab === 'product' && (

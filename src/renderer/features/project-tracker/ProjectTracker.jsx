@@ -64,7 +64,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
         </div>
       </div>
 
-      <Alert alert={alert} />
+      <Alert alert={alert} onDismiss={() => setAlert(null)} />
 
       {/* Search and Filters */}
       <div className="flex flex-col xl:flex-row xl:items-center gap-4 xl:gap-8 bg-white rounded-lg border border-gray-200 p-5 shadow-sm">

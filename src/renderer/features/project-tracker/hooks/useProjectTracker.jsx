@@ -41,7 +41,6 @@ export function useProjectTracker() {
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
   };
 
   useEffect(() => {

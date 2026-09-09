@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 
 /**
@@ -32,19 +32,64 @@ import { CheckCircle2, AlertCircle } from 'lucide-react';
 **/
 
 
-export default function Alert({ alert }) {
+export default function Alert({ alert, onDismiss }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const hideTimerRef = useRef(null);
+  const dismissTimerRef = useRef(null);
+  const onDismissRef = useRef(onDismiss);
+
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
+
+  useEffect(() => {
+    if (!alert) {
+      setIsVisible(false);
+      return undefined;
+    }
+
+    setIsVisible(true);
+    hideTimerRef.current = setTimeout(() => {
+      setIsVisible(false);
+      dismissTimerRef.current = setTimeout(() => onDismissRef.current?.(), 250);
+    }, 7000);
+
+    return () => {
+      clearTimeout(hideTimerRef.current);
+      clearTimeout(dismissTimerRef.current);
+    };
+  }, [alert]);
+
+  const handleDismiss = () => {
+    clearTimeout(hideTimerRef.current);
+    clearTimeout(dismissTimerRef.current);
+    setIsVisible(false);
+    dismissTimerRef.current = setTimeout(() => onDismissRef.current?.(), 250);
+  };
+
   if (!alert) return null;
   
   const isSuccess = alert.type === 'success';
   
   return (
-    <div className={`p-4 rounded-lg border flex items-center space-x-3 ${
-      isSuccess 
-        ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-        : 'bg-red-50 border-red-200 text-red-800'
-    }`}>
-      {isSuccess ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-      <span className="text-sm font-medium">{alert.message}</span>
+    <div className={`pointer-events-none fixed inset-x-0 top-4 z-[100] flex justify-center px-6 sm:px-10 lg:px-16 ${isVisible ? 'alert-enter' : 'alert-exit'}`}>
+      <div className={`pointer-events-auto relative flex w-full items-start gap-3 rounded-lg border p-4 pr-12 shadow-lg ${
+        isSuccess 
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+          : 'bg-red-50 border-red-200 text-red-800'
+      }`} role="alert">
+        {isSuccess ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />}
+        <span className="text-sm font-medium">{alert.message}</span>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="absolute right-3 top-3 rounded-md p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100"
+          aria-label="Dismiss alert"
+          title="Dismiss alert"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
