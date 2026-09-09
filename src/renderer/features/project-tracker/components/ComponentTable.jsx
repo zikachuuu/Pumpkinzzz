@@ -135,7 +135,7 @@ export default function ComponentTable({
                     <td className="px-4 py-3 font-semibold text-gray-900">{cc.name}</td>
                     <td className="px-4 py-3 font-medium">{cc.component_count}</td>
                     <td className="px-4 py-3 text-gray-500">{anchorM ? anchorM.name : 'ROS'}</td>
-                    <td className="px-4 py-3 font-medium">{cc.lead_time} days</td>
+                    <td className="px-4 py-3 font-gray-500">{cc.lead_time} days</td>
                     <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(cc.latest_order_date, dateFormat)}</td>
                     <td className="px-4 py-3">
                       <DateInputCell 

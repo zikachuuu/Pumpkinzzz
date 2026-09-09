@@ -36,6 +36,9 @@ export default function MilestoneTable({
             <option value="name-desc">Milestone (Z → A)</option>
             <option value="anchor-asc">Anchor (A → Z)</option>
             <option value="anchor-desc">Anchor (Z → A)</option>
+            {/* Added Offset Sorting */}
+            <option value="offset-asc">Offset (Lowest First)</option>
+            <option value="offset-desc">Offset (Highest First)</option>
             <option value="target-asc">Targeted Deadline (Earliest First)</option>
             <option value="target-desc">Targeted Deadline (Latest First)</option>
             <option value="actual-asc">Actual Completion (Earliest First)</option>
@@ -50,16 +53,17 @@ export default function MilestoneTable({
         <table className="min-w-full divide-y divide-gray-200 text-xs">
           <thead className="bg-gray-50 font-bold text-gray-500">
             <tr>
-              <th className="px-4 py-3 text-left">Milestone</th>
-              <th className="px-4 py-3 text-left">Anchor Milestone</th>
-              <th className="px-4 py-3 text-left">Targeted Deadline</th>
-              <th className="px-4 py-3 text-left">Actual Completion Date</th>
-              <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Milestone</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Anchor Milestone</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Offset</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Targeted Deadline</th>
+              {/* Restored px-4 padding and added whitespace-nowrap to prevent 2 lines */}
+              <th className="px-4 py-3 text-left whitespace-nowrap">Actual Completion Date</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-gray-700">
             {(() => {
-              // 👇 FIX 1: Pass a theoretical project to the scheduler so targets NEVER shift 👇
               const theoreticalProject = { ...project, actual_dates: '{}' };
               const deadlines = calculateMilestoneDeadlines(theoreticalProject, milestones);
               
@@ -79,13 +83,17 @@ export default function MilestoneTable({
               return sortedMilestones.map(m => {
                 const target = deadlines[m.id] || '-';
                 const isContractSigned = m.name.toLowerCase() === 'contract signed';
-                // Ensure Contract Signed uses the project date as its "actual" completion
-                const actual = isContractSigned ? project.contract_signed_date : (actuals[m.id] || '');
+                const isDefault = isContractSigned || m.name.toLowerCase() === 'ros';
                 
-                // Get standard base status (e.g., 'Completed before deadline')
+                const actual = isContractSigned ? project.contract_signed_date : (actuals[m.id] || '');
                 const statusText = getMilestoneStatus(target, actual, today);
                 
-                // Formulate the detailed badge string
+                // Formulate offset text
+                let offsetText = '-';
+                if (!isDefault) {
+                  offsetText = m.offset < 0 ? `${Math.abs(m.offset)} days before` : `${m.offset} days after`;
+                }
+
                 let badgeText = '';
                 if (actual && target && target !== '-') {
                   const daysDiff = Math.ceil((new Date(actual) - new Date(target)) / (1000 * 60 * 60 * 24));
@@ -109,22 +117,25 @@ export default function MilestoneTable({
 
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{isContractSigned || !anchor ? '-' : anchor.name}</td>
-                    <td className="px-4 py-3 font-bold text-indigo-700">{formatDate(target, dateFormat)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{m.name}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{isDefault || !anchor ? '-' : anchor.name}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{offsetText}</td>
+                    <td className="px-4 py-3 font-bold text-indigo-700 whitespace-nowrap">{formatDate(target, dateFormat)}</td>
+                    
+                    {/* Restored px-4 padding for standardized spacing */}
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {isContractSigned ? (
                         <span className="font-semibold text-gray-600">{formatDate(project.contract_signed_date, dateFormat)} (Locked)</span>
                       ) : (
                         <DateInputCell 
                           initialValue={actual} 
                           onSave={(val) => handleActualDateUpdate(project.tag_no, m.id, val)} 
-                          dateFormat={dateFormat} // 👈 ADD THIS PROP
+                          dateFormat={dateFormat} 
                         />                      
                       )}
                     </td>
                     
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {isContractSigned ? (
                         <span className="text-xs font-semibold text-gray-400">-</span>
                       ) : (
@@ -135,9 +146,8 @@ export default function MilestoneTable({
                       )}
                     </td>
                   </tr>
-                );
+                );              
               });
-
             })()}
           </tbody>
         </table>
@@ -165,6 +175,9 @@ function sortMilestones(rows, sortState) {
     if (sortState.key === 'status' || sortState.key === 'statusText') {
       result = (statusOrder[String(first.status).toLowerCase()] ?? 99) - (statusOrder[String(second.status).toLowerCase()] ?? 99);
       if (result === 0) result = compareDate(first.target, second.target);
+    } else if (sortState.key === 'offset') {
+      // Added numerical offset sorting
+      result = Number(first.offset || 0) - Number(second.offset || 0);
     } else if (sortState.key === 'actual') {
       result = compareDate(first.actual || first.target, second.actual || second.target);
     } else if (sortState.key === 'target') {
@@ -212,7 +225,7 @@ function DateInputCell({ initialValue, onSave, dateFormat }) {
       tabIndex={0}
       onClick={() => setIsEditing(true)}
       onFocus={() => setIsEditing(true)}
-      className={`px-2 py-1 border rounded text-xs cursor-text transition-colors flex items-center min-w-[100px] h-[26px] ${
+      className={`px-2 py-1 border rounded text-xs cursor-text transition-colors flex items-center min-w-[90px] h-[26px] ${
         value 
           ? 'border-gray-300 text-gray-700 font-semibold bg-gray-50 hover:bg-gray-50' 
           : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
