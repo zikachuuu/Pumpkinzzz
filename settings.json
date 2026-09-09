@@ -1,6 +1,7 @@
 {
   "dateFormat": "yyyy-mm-dd",
   "startOfWeek": 0,
+  "showVersionUpdateOnLaunch": false,
   "urgencySettings": {
     "milestoneUrgentDays": 30,
     "milestoneVeryUrgentDays": 7,

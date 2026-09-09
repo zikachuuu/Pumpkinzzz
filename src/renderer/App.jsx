@@ -4,16 +4,27 @@ import ProductTypeManager from './features/product-type-manager/ProductTypeManag
 import ProjectRegistry from './features/project-registry/ProjectRegistry.jsx';
 import ProjectTracker from './features/project-tracker/ProjectTracker.jsx';
 import Settings from './features/setting/Settings.jsx';
+import VersionUpdate from './features/setting/VersionUpdate.jsx';
 import { DATE_FORMATS, getStoredDateFormat, setStoredDateFormat, syncSettingsFromJson } from './utils/date';
+
+import Modal from './components/ui/Modal.jsx';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dateFormat, setDateFormat] = useState(getStoredDateFormat);
+  
+  const [showBetaWarning, setShowBetaWarning] = useState(true);
+  const [showVersionModal, setShowVersionModal] = useState(false);
 
   useEffect(() => {
     syncSettingsFromJson().then((settings) => {
       if (settings?.dateFormat) {
         setDateFormat(settings.dateFormat);
+      }
+      // Check if version update modal should open on startup
+      if (settings?.showVersionUpdateOnLaunch) {
+        setShowVersionModal(true);
       }
     });
   }, []);
@@ -22,6 +33,18 @@ export default function App() {
     const nextFormat = Object.values(DATE_FORMATS).includes(format) ? format : DATE_FORMATS.iso;
     setStoredDateFormat(nextFormat);
     setDateFormat(nextFormat);
+  };
+
+  const handleDisableLaunchModal = async (e) => {
+    const isChecked = e.target.checked;
+    if (isChecked) {
+      try {
+        const currentSettings = await window.electronAPI.readSettings();
+        await window.electronAPI.writeSettings({ ...currentSettings, showVersionUpdateOnLaunch: false });
+      } catch (err) {
+        console.error('Failed to update launch settings preference:', err);
+      }
+    }
   };
 
   return (
@@ -71,7 +94,6 @@ export default function App() {
             activeTab === 'settings' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
           }`}
         >
-        {/* Settings Icon */}
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             fill="none" 
@@ -84,9 +106,14 @@ export default function App() {
           </svg>          
           Settings
         </button>
-        <div className="p-4 border-t border-indigo-800 text-xs text-indigo-300 text-center">
-          v1.0.0 (Local Workspace)
-        </div>
+        <button
+          onClick={() => setActiveTab('versionUpdate')}
+          className={`p-4 border-t border-indigo-800 text-xs font-bold text-center w-full transition-colors ${
+            activeTab === 'versionUpdate' ? 'bg-indigo-800 text-indigo-100' : 'text-indigo-300 hover:bg-indigo-800 hover:text-indigo-100'
+          }`}
+        >
+          beta v1.0.0
+        </button>
       </aside>
 
       {/* Main Content Area */}
@@ -100,7 +127,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-8 relative">
           {activeTab === 'dashboard' && (
             <Dashboard dateFormat={dateFormat} />
           )}
@@ -120,11 +147,86 @@ export default function App() {
           {activeTab === 'settings' && (
             <Settings dateFormat={dateFormat} onDateFormatChange={handleDateFormatChange} />
           )}
+
+          {activeTab === 'versionUpdate' && (
+            <VersionUpdate />
+          )}
         </div>
       </main>
+
+      {/* 1. BETA WARNING MODAL (Appears on every launch) */}
+      <Modal 
+        isOpen={showBetaWarning} 
+        onClose={() => setShowBetaWarning(false)} 
+        title={
+          <div className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="w-5 h-5" />
+            <span>Beta Version</span>
+          </div>
+        } 
+        maxWidth="max-w-xl"
+      >
+        <div className="space-y-4">
+          <p className="text-sm font-semibold text-gray-800">
+            Welcome to Pumpkinzzz Project Managemnt! Please note that this application is currently in beta mode:
+          </p>
+          <ul className="list-disc list-inside text-sm text-gray-600 space-y-2">
+            <li>Data loss & corruption may occur, especially for batch export/import with spreadsheets features. Do not store any important project information!</li>
+            <li>The Product Type and Component Dashboards are currently under construction.</li>
+            <li>Best viewed on a laptop full screen. Pumpkinzzz currently does not adjust gracefully to narrow window sizes.</li>
+          </ul>
+          <p className="text-sm text-gray-600">
+            Please report any bugs or feature suggestions to <a href="mailto:le0003hi@e.ntu.edu.sg" className="text-indigo-600 font-bold hover:underline">le0003hi@e.ntu.edu.sg</a>.
+          </p>
+          <p className="text-sm text-gray-600">
+            Thank you for trying out Pumpkinzzz!
+          </p>
+          <div className="pt-4 flex justify-end">
+            <button 
+              onClick={() => setShowBetaWarning(false)}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm transition"
+            >
+              Okay, I understand
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 2. SKELETON VERSION UPDATE MODAL (Conditionally launched based on settings) */}
+      <Modal
+        isOpen={showVersionModal}
+        onClose={() => setShowVersionModal(false)}
+        title={
+          <div className="flex items-center gap-2 text-indigo-600">
+            <Sparkles className="w-5 h-5" />
+            <span>What's New in beta v1.0.0</span>
+          </div>
+        }
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-sm text-indigo-900 font-medium">
+            Beta app launched successfully! Explore the tracking tools and product type manager.
+          </div>
+          <div className="flex items-center justify-between pt-2">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
+              <input 
+                type="checkbox" 
+                onChange={handleDisableLaunchModal}
+                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" 
+              />
+              Do not show this again
+            </label>
+            <button
+              onClick={() => setShowVersionModal(false)}
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }
-
-
-

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Calendar, Check, Clock, CalendarDays, RotateCcw } from 'lucide-react';
+import { Calendar, Check, Clock, CalendarDays, RotateCcw, Megaphone } from 'lucide-react';
 import { DATE_FORMATS, DEFAULT_URGENCY_SETTINGS, formatDate, getUrgencySettings, setUrgencySettings, getStartOfWeek, setStartOfWeek, resetPersistedSettings } from '../../utils/date';
 
 export default function Settings({ dateFormat, onDateFormatChange }) {
   const [urgencySettings, setUrgencySettingsState] = React.useState(getUrgencySettings);
   const [startOfWeek, setStartOfWeekState] = React.useState(getStartOfWeek);
+  const [showVersionUpdateOnLaunch, setShowVersionUpdateOnLaunch] = React.useState(false);
 
   const updateUrgencySetting = (key, value) => {
     const nextSettings = { ...urgencySettings, [key]: Math.max(0, Number(value) || 0) };
@@ -24,6 +25,7 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
     const defaultSettings = resetPersistedSettings();
     setUrgencySettingsState(defaultSettings.urgencySettings);
     setStartOfWeekState(defaultSettings.startOfWeek);
+    setShowVersionUpdateOnLaunch(defaultSettings.showVersionUpdateOnLaunch);
     onDateFormatChange(defaultSettings.dateFormat);
   };
 
@@ -48,7 +50,7 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
         <div className="flex items-start gap-3">
           <Calendar className="w-5 h-5 text-indigo-600 mt-0.5" />
           <div className="flex-1">
-            <h3 className="font-bold text-gray-900">Date display format</h3>
+            <h3 className="font-bold text-gray-900">Date Display Format</h3>
             <p className="text-xs text-gray-500 mt-1">Dates shown in lists, timelines, and project details use this format.</p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(DATE_FORMATS).map(([key, format]) => (
@@ -121,6 +123,34 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
           </div>
         </div>
       </section>
+
+      {/* NEW: Show Version Update on Launch Toggle */}
+      <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <Megaphone className="w-5 h-5 text-indigo-600 mt-0.5" />
+          <div>
+            <h3 className="font-bold text-gray-900">Show Version Update on Launch</h3>
+          </div>
+          <label className="relative ml-auto inline-flex shrink-0 items-center cursor-pointer mt-1">
+            <input 
+              type="checkbox" 
+              checked={!!urgencySettings.showVersionUpdateOnLaunch} // Or pull from general settings if managed globally
+              // We'll manage this cleanly through window.electronAPI.readSettings / writeSettings
+              onChange={async (e) => {
+                const val = e.target.checked;
+                // Quick inline handler or state updater
+                const currentSettings = await window.electronAPI.readSettings();
+                await window.electronAPI.writeSettings({ ...currentSettings, showVersionUpdateOnLaunch: val });
+                // Force state update reload if necessary or manage via props
+              }}
+              className="sr-only peer"
+            />
+            {/* Simple Tailwind Toggle Switch UI */}
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+      </section>
+
     </div>
   );
 }

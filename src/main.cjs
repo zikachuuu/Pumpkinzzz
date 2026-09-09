@@ -12,6 +12,7 @@ const settingsPath = path.join(__dirname, '..', 'settings.json');
 const defaultSettings = {
   dateFormat: 'yyyy-mm-dd',
   startOfWeek: 1,
+  showVersionUpdateOnLaunch: false,
   urgencySettings: {
     milestoneUrgentDays: 30,
     milestoneVeryUrgentDays: 7,
