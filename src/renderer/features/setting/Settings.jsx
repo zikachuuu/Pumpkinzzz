@@ -131,22 +131,22 @@ export default function Settings({ dateFormat, onDateFormatChange }) {
           <div>
             <h3 className="font-bold text-gray-900">Show Version Update on Launch</h3>
           </div>
+          {/*
+            Deliberately disabled until version-update behavior is implemented.
+            To enable it later: bind checked to showVersionUpdateOnLaunch, add an
+            onChange handler that updates local state and writes
+            showVersionUpdateOnLaunch to settings.json, then remove disabled.
+            The peer-checked classes below already provide the toggle animation.
+          */}
           <label className="relative ml-auto inline-flex shrink-0 items-center cursor-pointer mt-1">
             <input 
               type="checkbox" 
-              checked={!!urgencySettings.showVersionUpdateOnLaunch} // Or pull from general settings if managed globally
-              // We'll manage this cleanly through window.electronAPI.readSettings / writeSettings
-              onChange={async (e) => {
-                const val = e.target.checked;
-                // Quick inline handler or state updater
-                const currentSettings = await window.electronAPI.readSettings();
-                await window.electronAPI.writeSettings({ ...currentSettings, showVersionUpdateOnLaunch: val });
-                // Force state update reload if necessary or manage via props
-              }}
+              checked={showVersionUpdateOnLaunch}
+              disabled
               className="sr-only peer"
             />
             {/* Simple Tailwind Toggle Switch UI */}
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            <div className="w-11 h-6 bg-gray-200 rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:bg-indigo-600"></div>
           </label>
         </div>
       </section>
