@@ -197,6 +197,17 @@ export default function ProductTypeManager() {
     }
   };
 
+  const onRenameProductTypeSubmit = async (e, productType) => {
+    e.preventDefault();
+    try {
+      await handleRenameProductType(productType.id, ptRenameInput);
+      setPtRenameId(null);
+      setPtRenameInput('');
+    } catch (err) {
+      triggerAlert('error', err.message);
+    }
+  };
+
   const handleCreateGlobalComponent = async (e) => {
     e.preventDefault();
     if (!componentForm.name.trim()) return;
@@ -536,15 +547,15 @@ export default function ProductTypeManager() {
               <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   {ptRenameId === pt.id ? (
-                    <form onSubmit={handleRenameProductType} className="flex items-center space-x-1.5 w-full mr-2">
-                      <input type="text" value={ptRenameInput} onChange={(e) => setPtRenameInput(e.target.value)} className="py-1 px-2 border rounded text-xs block w-full focus:outline-none focus:border-indigo-500" required autoFocus />
+                    <form onSubmit={(e) => onRenameProductTypeSubmit(e, pt)} className="flex min-w-0 flex-1 items-center space-x-1.5 mr-2">
+                      <input type="text" value={ptRenameInput} onChange={(e) => setPtRenameInput(e.target.value)} className="block min-w-0 flex-1 max-w-[220px] rounded border px-2 py-1 text-xs focus:outline-none focus:border-indigo-500" required autoFocus />
                       <button type="submit" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Save Rename"><Check className="w-3.5 h-3.5" /></button>
                     </form>
                   ) : (
                     <h3 className="font-bold text-gray-950 text-lg tracking-tight truncate max-w-[160px]">{pt.name}</h3>
                   )}
                   
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex shrink-0 items-center gap-1">
                     <UsageCapsule count={pt.in_use_count} onClick={() => openUsageModal('product_type', pt.id, pt.name)} />
 
                     <StatusBadge status={pt.status} />

@@ -42,7 +42,15 @@ export function useProductType(triggerAlert) {
   };
 
   const handleRenameProductType = async (id, newName) => {
-    await db.renameProductType(id, newName);
+    const trimmedName = newName.trim();
+    if (!trimmedName) throw new Error('Product type name cannot be empty');
+
+    const exists = productTypes.some(
+      pt => pt.id !== id && pt.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (exists) throw new Error('Product type already exists');
+
+    await db.renameProductType(id, trimmedName);
     triggerAlert('success', 'Product Type renamed successfully!');
     await loadProductTypes();
   };
