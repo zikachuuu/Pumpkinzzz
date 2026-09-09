@@ -226,3 +226,9 @@ node_modules
 # SQLite temporary journal and write-ahead log files
 *.db-shm
 *.db-wal
+
+# Build outputs
+dist/
+release/
+*.exe
+*.dmg

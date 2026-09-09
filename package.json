@@ -1,6 +1,6 @@
 {
   "name": "pumpkinzzz",
-  "version": "1.0.0",
+  "version": "1.0.0-beta",
   "type": "module",
   "description": "Project schedule tracking application for manufacturing lifecycle tracking",
   "main": "src/main.cjs",
@@ -41,14 +41,22 @@
     },
     "files": [
       "dist/**/*",
-      "src/**/*",
+      "src/main.cjs",
+      "src/preload.js",
       "package.json"
     ],
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "category": "public.app-category.productivity"
     },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
     }
   }
 }

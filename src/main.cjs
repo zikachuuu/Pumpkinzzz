@@ -7,8 +7,9 @@ let mainWindow;
 let db;
 
 // Locate or create SQLite Database file in the project directory for portability
-const dbPath = path.join(__dirname, '..', 'pumpkinzzz.db');
-const settingsPath = path.join(__dirname, '..', 'settings.json');
+const userDataPath = app.getPath('userData');
+const dbPath = path.join(userDataPath, 'pumpkinzzz.db');
+const settingsPath = path.join(userDataPath, 'settings.json');
 const defaultSettings = {
   dateFormat: 'yyyy-mm-dd',
   startOfWeek: 1,
