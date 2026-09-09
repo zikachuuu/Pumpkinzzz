@@ -163,10 +163,18 @@ export default function SchedulesTab({
                             </span>
 
                             {/* --- DELETE BUTTON WRAPPED FOR TOOLTIP --- */}
-                            <span 
-                              title={s.in_use_count > 0 ? 'Currently in use schedule cannot be deleted.' : 'Delete Schedule'}
-                              className={s.in_use_count > 0 ? 'cursor-not-allowed inline-flex' : 'inline-flex'}
-                            >
+                                                        <span
+                                                            title={s.in_use_count > 0 ? 'Currently in use schedule cannot be deleted.' : 'Delete Schedule'}
+                                                            className={`relative inline-flex group ${s.in_use_count > 0 ? 'cursor-not-allowed' : ''}`}
+                                                        >
+                                                                {s.in_use_count > 0 && (
+                                                                    <span
+                                                                        role="tooltip"
+                                                                        className="pointer-events-none absolute right-0 bottom-full z-50 mb-2 hidden w-40 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-center text-[11px] font-semibold leading-tight text-red-700 shadow-lg group-hover:block"
+                                                                    >
+                                                                        Schedule is in use!
+                                                                    </span>
+                                                                )}
                                 {/* BULLETPROOF TOOLTIP & DISABLED STATE */}
                                 <button
                                     onClick={(e) => {

@@ -532,7 +532,7 @@ export default function ProductTypeManager() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPtList.map(pt => (
-            <div key={pt.id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all flex flex-col justify-between overflow-hidden">
+            <div key={pt.id} className="relative bg-white rounded-xl border border-gray-200 shadow-sm hover:z-20 hover:shadow-md hover:border-gray-300 transition-all flex flex-col justify-between">
               <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   {ptRenameId === pt.id ? (
@@ -562,17 +562,27 @@ export default function ProductTypeManager() {
               <div className="flex space-x-3">
                   <button onClick={() => { setPtRenameId(pt.id); setPtRenameInput(pt.name); }} className="hover:text-indigo-600 transition">Rename</button>
                   
-                  <button 
-                    onClick={(e) => {
-                      if (pt.in_use_count > 0) return; 
-                      handleDeleteProductType(pt.id, pt.name);
-                    }} 
-                    aria-disabled={pt.in_use_count > 0}
-                    title={pt.in_use_count > 0 ? 'Currently in use product type cannot be deleted.' : 'Delete Product Type'}
-                    className={`transition ${pt.in_use_count > 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:text-red-600'}`}
-                  >
-                    Delete
-                  </button>
+                  <span className={`relative inline-flex group ${pt.in_use_count > 0 ? 'cursor-not-allowed' : ''}`}>
+                    {pt.in_use_count > 0 && (
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute right-0 bottom-full z-50 mb-2 hidden w-40 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-center text-[11px] font-semibold leading-tight text-red-700 shadow-lg group-hover:block"
+                      >
+                        Product type is in use!
+                      </span>
+                    )}
+                    <button 
+                      onClick={(e) => {
+                        if (pt.in_use_count > 0) return; 
+                        handleDeleteProductType(pt.id, pt.name);
+                      }} 
+                      aria-disabled={pt.in_use_count > 0}
+                      title={pt.in_use_count > 0 ? 'Product type is in use!' : 'Delete Product Type'}
+                      className={`transition ${pt.in_use_count > 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:text-red-600'}`}
+                    >
+                      Delete
+                    </button>
+                  </span>
               </div>  
 
                 <button type="button" onClick={(event) => { event.currentTarget.blur(); handleSelectProductType(pt); }} className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-800 transition">

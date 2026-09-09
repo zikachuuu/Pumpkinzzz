@@ -124,7 +124,7 @@ export default function ProjectTracker({ onRedirectToRegistry, dateFormat }) {
               <span className="text-[10px] font-semibold leading-none text-gray-600">Project Status</span>
               <ChecklistFilter
                 label="Project Status"
-                className="w-[155px] shrink-0"
+                className="w-[130px] shrink-0"
                 options={[
                   { value: 'active', label: 'Active' },
                   { value: 'locked', label: 'Locked' }
