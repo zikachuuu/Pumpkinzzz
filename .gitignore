@@ -232,3 +232,5 @@ dist/
 release/
 *.exe
 *.dmg
+
+.vscode/
