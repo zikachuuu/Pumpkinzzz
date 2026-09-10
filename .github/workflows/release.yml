@@ -3,18 +3,16 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # This tells GitHub to ONLY run this script when you push a version tag like "v1.0.0"
+      - 'v*'
 
-# THIS IS THE MAGIC FIX: Grants permission to upload the release
 permissions:
   contents: write
 
 jobs:
   release:
-    # This is the "Matrix Strategy" that solves your cross-compilation issue!
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false # Prevents Mac from canceling Windows if it fails
+      fail-fast: false 
       matrix:
         os: [macos-latest, windows-latest]
 
@@ -25,16 +23,16 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24 # You can change this to match the Node version you use locally
+          node-version: 24 
 
       - name: Install dependencies
         run: npm install
 
+      # THIS IS THE FIX: Only build the frontend here!
       - name: Build Frontend (Vite/React)
-        run: npm run build 
+        run: npm run build:frontend 
 
       - name: Build and Publish Electron app
         run: npx electron-builder --publish always
         env:
-          # GitHub automatically generates this token to securely upload your .exe and .dmg
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
