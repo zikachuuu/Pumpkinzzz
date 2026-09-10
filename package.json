@@ -1,6 +1,6 @@
 {
   "name": "pumpkinzzz",
-  "version": "1.0.0-beta",
+  "version": "1.0.0-beta.5",
   "type": "module",
   "description": "Project schedule tracking application for manufacturing lifecycle tracking",
   "main": "src/main.cjs",
