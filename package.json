@@ -34,8 +34,15 @@
     "vite": "^5.3.1"
   },
   "build": {
-    "appId": "com.pumpkinzzz.app",
+    "appId": "com.zikachuuu.pumpkinzzz",
     "productName": "Pumpkinzzz",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "zikachuuu",
+        "repo": "pumpkinzzz"
+      }
+    ],
     "directories": {
       "output": "release"
     },
