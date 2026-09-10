@@ -5,11 +5,16 @@ on:
     tags:
       - 'v*' # This tells GitHub to ONLY run this script when you push a version tag like "v1.0.0"
 
+# THIS IS THE MAGIC FIX: Grants permission to upload the release
+permissions:
+  contents: write
+
 jobs:
   release:
     # This is the "Matrix Strategy" that solves your cross-compilation issue!
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # Prevents Mac from canceling Windows if it fails
       matrix:
         os: [macos-latest, windows-latest]
 
